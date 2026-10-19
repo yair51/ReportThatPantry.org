@@ -99,6 +99,8 @@
     .pg-log-ai { font-size: 0.78rem; color: var(--pg-secondary); margin-top: 4px; }
 
     .pg-pagination { display: flex; justify-content: space-between; align-items: center; margin-top: 18px; font-size: 0.88rem; color: var(--pg-text-secondary); }
+    /* Older/Newer links jump back to the log; leave room for the sticky navbar */
+    #report-log { scroll-margin-top: 100px; }
     .pg-pagination a { color: var(--pg-accent-dark); font-weight: 600; text-decoration: none; }
     .pg-pagination a.disabled { color: var(--pg-text-muted); pointer-events: none; }
 
@@ -159,13 +161,13 @@
             {% set subscriber_count = pantry.notifications|length %}
             {% if subscriber_count == 1 %}1 neighbor already gets alerts for this pantry.{% elif subscriber_count > 1 %}{{ subscriber_count }} neighbors already get alerts for this pantry.{% endif %}
         </p>
-        <form id="subscriptionForm" onsubmit="handleSubscription(event)">
+        <form id="subscriptionForm" onsubmit="handleSubscription(event)" style="margin: 0;">
             <div class="pg-notify-options mb-2">
                 <label><input type="radio" name="notify_on" value="empty" checked> Only when it's empty</label>
                 <label><input type="radio" name="notify_on" value="all"> Every report</label>
             </div>
             <div class="d-flex" style="gap:10px; flex-wrap:wrap;">
-                <input type="email" class="form-control" id="subscriptionEmail" placeholder="Enter your email address" required style="max-width:320px;"{% if user.is_authenticated %} value="{{ user.email }}"{% endif %}>
+                <input type="email" class="form-control" id="subscriptionEmail" placeholder="Enter your email" required style="max-width:320px;"{% if user.is_authenticated %} value="{{ user.email }}"{% endif %}>
                 <button type="submit" class="btn btn-primary"><i class="fas fa-bell"></i> Subscribe</button>
             </div>
         </form>
@@ -228,7 +230,7 @@
 </div>
 {% endif %}
 
-<div class="pg-section">
+<div class="pg-section" id="report-log">
     <h2>Report log</h2>
     <p class="pg-section-note">{{ log_pagination.total }} report{{ 's' if log_pagination.total != 1 else '' }} total, newest first.</p>
     <div class="pg-card">
@@ -253,13 +255,13 @@
             {% endfor %}
             <div class="pg-pagination">
                 {% if log_pagination.has_prev %}
-                    <a href="?page={{ log_pagination.prev_num }}"><i class="fas fa-arrow-left"></i> Newer</a>
+                    <a href="?page={{ log_pagination.prev_num }}#report-log"><i class="fas fa-arrow-left"></i> Newer</a>
                 {% else %}
                     <span class="disabled">&nbsp;</span>
                 {% endif %}
                 <span>Page {{ log_pagination.page }} of {{ log_pagination.pages }}</span>
                 {% if log_pagination.has_next %}
-                    <a href="?page={{ log_pagination.next_num }}">Older <i class="fas fa-arrow-right"></i></a>
+                    <a href="?page={{ log_pagination.next_num }}#report-log">Older <i class="fas fa-arrow-right"></i></a>
                 {% else %}
                     <span class="disabled">&nbsp;</span>
                 {% endif %}
