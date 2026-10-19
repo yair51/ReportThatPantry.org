@@ -520,10 +520,15 @@ def send_notification_emails(location, report, image_data=None):
     address = escape(f"{location.address}, {location.city}, {location.state}")
     is_empty = report.pantry_fullness is not None and report.pantry_fullness <= 33
 
-    for notification in location.notifications:
-        if not (notification.user and notification.user.email) or not notification.wants_report(report):
-            continue
+    recipients = [n for n in location.notifications
+                  if n.user and n.user.email and n.wants_report(report)]
+    others = len(recipients) - 1
+    if others == 0:
+        others_line = "<p>You're the only neighbor who got this alert.</p>"
+    else:
+        others_line = f"<p>👥 <strong>{others} other neighbor{'s' if others != 1 else ''}</strong> got this alert too.</p>"
 
+    for notification in recipients:
         if is_empty:
             subject = f"{location.name} is Empty!"
             heading = f"🚨 {name} Needs Restocking!"
@@ -543,6 +548,8 @@ def send_notification_emails(location, report, image_data=None):
                 {f'<p><strong>Recent Update:</strong> {escape(report.description)}</p>' if report.description else ''}
 
                 {f'<p>📸 A new photo has been uploaded - check it out on the website!</p>' if report.photo else ''}
+
+                {others_line}
 
                 <p>{_email_button(location_url, "View Pantry Details")}</p>
 

@@ -6,33 +6,33 @@
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 <style>
     :root {
-        --pg-bg: #F7F3EA;
+        --pg-bg: #f8f9fa;
         --pg-surface: #FFFFFF;
-        --pg-sunken: #EFE9DC;
-        --pg-text: #221D16;
-        --pg-text-secondary: #6B6255;
-        --pg-text-muted: #948C7C;
-        --pg-border: rgba(34,29,22,0.12);
-        --pg-accent: #B8752E;
-        --pg-accent-dark: #8A5420;
-        --pg-accent-bg: #F1E1C6;
-        --pg-accent-ink: #6B4118;
-        --pg-secondary: #3F6E64;
-        --pg-secondary-bg: #DCE8E4;
-        --pg-good: #4F7942;
-        --pg-good-bg: #E4EEDD;
-        --pg-warn-bg: #F6E7CE;
-        --pg-warn-ink: #7A4E12;
-        --pg-critical: #B8483C;
-        --pg-critical-bg: #F5DEDA;
-        --pg-critical-ink: #7A2E24;
+        --pg-sunken: #e9ecef;
+        --pg-text: #212529;
+        --pg-text-secondary: #495057;
+        --pg-text-muted: #6c757d;
+        --pg-border: rgba(30,58,95,0.12);
+        --pg-accent: #ee5a24;
+        --pg-accent-dark: #1e3a5f;
+        --pg-accent-bg: #ffe3d8;
+        --pg-accent-ink: #9a3412;
+        --pg-secondary: #2B4E72;
+        --pg-secondary-bg: #dbe4f0;
+        --pg-good: #2e7d32;
+        --pg-good-bg: #e3f1e4;
+        --pg-warn-bg: #fff4cc;
+        --pg-warn-ink: #7a5b00;
+        --pg-critical: #c0392b;
+        --pg-critical-bg: #fbe3e0;
+        --pg-critical-ink: #8a2c22;
     }
 
     .content-area { margin-top: 0 !important; padding-top: 0 !important; }
     body { background: var(--pg-bg) !important; font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
 
     .pg-hero {
-        background: linear-gradient(135deg, #8A5420 0%, #B8752E 55%, #3F6E64 100%) !important;
+        background: linear-gradient(135deg, #2B4E72 0%, #1e3a5f 50%, #4a6fa5 100%) !important;
         color: white !important;
         padding: 60px 0 40px 0;
         margin: 0 0 34px 0;
@@ -46,9 +46,9 @@
 
     .pg-status-row { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; margin-bottom: 22px; }
     .pg-status-pill { display: inline-flex; align-items: center; gap: 8px; padding: 8px 18px; border-radius: 30px; font-weight: 700; font-size: 1.05rem; }
-    .pg-status-pill.full { background: rgba(79,121,66,0.25); color: #DCEECB; }
-    .pg-status-pill.half { background: rgba(184,117,46,0.3); color: #FBE6C4; }
-    .pg-status-pill.empty { background: rgba(184,72,60,0.3); color: #F6D2CC; }
+    .pg-status-pill.full { background: rgba(46,125,50,0.35); color: #d7f0d8; }
+    .pg-status-pill.half { background: rgba(255,215,0,0.2); color: #ffd700; }
+    .pg-status-pill.empty { background: rgba(255,107,107,0.3); color: #ffd9d9; }
     .pg-status-pill.unknown { background: rgba(255,255,255,0.2); color: #fff; }
     .pg-updated { font-size: 0.88rem; opacity: 0.85; }
 
@@ -59,8 +59,8 @@
         color: white; background: rgba(255,255,255,0.12); transition: background 0.2s ease;
     }
     .pg-btn:hover { background: rgba(255,255,255,0.24); color: white; }
-    .pg-btn.primary { background: white; color: var(--pg-accent-dark); border-color: white; }
-    .pg-btn.primary:hover { background: #F6EEDF; color: var(--pg-accent-dark); }
+    .pg-btn.primary { background: linear-gradient(45deg, #ff6b6b, #ee5a24); color: white; border-color: transparent; }
+    .pg-btn.primary:hover { background: linear-gradient(45deg, #ee5a24, #ff6b6b); color: white; }
 
     .container-pg { max-width: 1000px; margin: 0 auto; padding: 0 20px; }
 
@@ -74,7 +74,8 @@
     .pg-section-note { color: var(--pg-text-secondary); font-size: 0.9rem; margin-bottom: 16px; max-width: 70ch; }
     .pg-card { background: var(--pg-surface); border: 1px solid var(--pg-border); border-radius: 16px; padding: 24px 26px; }
     .pg-chart-box { position: relative; width: 100%; }
-    .pg-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+    .pg-grid-2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 22px; }
+    .pg-grid-2 > * { min-width: 0; }
     @media (max-width: 700px) { .pg-grid-2 { grid-template-columns: 1fr; } }
 
     .pg-callout { background: var(--pg-sunken); border-radius: 12px; padding: 16px 20px; margin-top: 16px; font-size: 0.9rem; color: var(--pg-text-secondary); }
@@ -228,30 +229,6 @@
 </div>
 {% endif %}
 
-{% if analytics.ai_insights and analytics.ai_insights.total_ai_reports > 0 %}
-<div class="pg-section">
-    <h2>AI photo analysis</h2>
-    <p class="pg-section-note">{{ analytics.ai_insights.total_ai_reports }} of {{ analytics.total_reports }} reports ({{ analytics.ai_insights.ai_coverage_percentage }}%) included a photo the vision model analyzed.</p>
-    <div class="pg-card">
-        <div class="pg-grid-2">
-            <div>
-                {% if analytics.ai_insights.average_ai_fullness is not none %}
-                <div class="pg-stat-line"><span>AI-estimated average fullness</span><span class="num">{{ analytics.ai_insights.average_ai_fullness }}%</span></div>
-                {% endif %}
-                <div class="pg-stat-line"><span>Self-reported average fullness</span><span class="num">{{ analytics.fullness_stats.average }}%</span></div>
-            </div>
-            <div>
-                {% if analytics.ai_insights.most_common_items %}
-                <div style="font-size:0.82rem;color:var(--pg-text-secondary);margin-bottom:6px;">Most commonly spotted items</div>
-                {% for item, count in analytics.ai_insights.most_common_items %}
-                    <span class="pg-food-tag">{{ item }} &times;{{ count }}</span>
-                {% endfor %}
-                {% endif %}
-            </div>
-        </div>
-    </div>
-</div>
-{% endif %}
 
 {% else %}
 <div class="pg-section">
@@ -287,7 +264,7 @@
                 {% endif %}
                 <div style="flex:1;">
                     <span class="pg-log-badge {{ 'empty' if report.pantry_fullness <= 33 else ('half' if report.pantry_fullness <= 67 else 'full') }}">{{ report.pantry_fullness }}%</span>
-                    <span class="pg-log-time ms-2">{{ pantry.to_local(report.time).strftime('%b %-d, %Y %-I:%M %p %Z') }} &middot; {{ 'Registered user' if report.user_id else 'Anonymous' }}</span>
+                    <span class="pg-log-time ms-2">{{ pantry.to_local(report.time).strftime('%b %-d, %Y %-I:%M %p %Z') }}</span>
                     {% if report.description %}<div class="pg-log-desc">{{ report.description }}</div>{% endif %}
                     {% set vision = report.get_vision_analysis() %}
                     {% if vision and vision.get('food_items') %}
@@ -341,13 +318,13 @@
 {% if analytics %}
 <script>
 const PG_COLORS = {
-    accent: '#B8752E',
-    accentFill: 'rgba(184,117,46,0.15)',
-    secondary: '#3F6E64',
-    gray: '#D6CDBB',
-    grid: '#E7E0D2',
-    axis: '#6B6255',
-    diverge: ['#B8483C', '#C98A3E', '#D3B26A', '#A9C08A', '#79A868', '#4F7942']
+    accent: '#ee5a24',
+    accentFill: 'rgba(238,90,36,0.15)',
+    secondary: '#2B4E72',
+    gray: '#ced4da',
+    grid: '#e9ecef',
+    axis: '#495057',
+    diverge: ['#c0392b', '#e67e22', '#f1c40f', '#a3c76b', '#5fa055', '#2e7d32']
 };
 Chart.defaults.font.family = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
 Chart.defaults.color = PG_COLORS.axis;
@@ -378,7 +355,7 @@ new Chart(document.getElementById('chartDow'), {
     data: { labels: dow.map(d => d.label), datasets: [{ data: dow.map(d => d.count), backgroundColor: PG_COLORS.accent, borderRadius: 4 }] },
     options: {
         responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
-        scales: { x: { grid: { display: false } }, y: { grid: { color: PG_COLORS.grid } } }
+        scales: { x: { grid: { display: false } }, y: { grid: { color: PG_COLORS.grid }, ticks: { precision: 0 } } }
     }
 });
 
@@ -388,7 +365,7 @@ new Chart(document.getElementById('chartHour'), {
     data: { labels: hod.map(h => h.hour), datasets: [{ data: hod.map(h => h.count), backgroundColor: PG_COLORS.secondary, borderRadius: 3, barPercentage: 0.9, categoryPercentage: 0.9 }] },
     options: {
         responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
-        scales: { x: { grid: { display: false }, ticks: { maxTicksLimit: 8 } }, y: { grid: { color: PG_COLORS.grid } } }
+        scales: { x: { grid: { display: false }, ticks: { maxTicksLimit: 8 } }, y: { grid: { color: PG_COLORS.grid }, ticks: { precision: 0 } } }
     }
 });
 

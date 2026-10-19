@@ -54,7 +54,8 @@
     .bb-callout strong { color: var(--bb-text); }
 
     .bb-chart-box { position: relative; width: 100%; }
-    .bb-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+    .bb-grid-2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; }
+    .bb-grid-2 > * { min-width: 0; }
     @media (max-width: 700px) { .bb-grid-2 { grid-template-columns: 1fr; } }
 
     /* Heatmap toggle */
