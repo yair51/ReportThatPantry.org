@@ -40,7 +40,7 @@ Config is selected by `FLASK_ENV` in `config/config.py` (`ProductionConfig` / `S
 
 ### Data model (`app/models.py`)
 - `User` — auth (Flask-Login `UserMixin`), owns locations/reports/notifications.
-- `Location` — a pantry: address, lat/long, plus an email-only submission flow (`submitter_email`, `verification_token`, `verified`, `verified_at`) that lets non-account-holders register a pantry.
+- `Location` — a pantry: address, lat/long, `time_zone` (IANA name, auto-filled from lat/long by a `before_insert`/`before_update` listener using `timezonefinder`; falls back to `America/Los_Angeles`), plus an email-only submission flow (`submitter_email`, `verification_token`, `verified`, `verified_at`) that lets non-account-holders register a pantry.
 - `Report` — a fullness report: `pantry_fullness`, optional photo, `vision_analysis` (JSON blob) with accessor methods (`get_status()`, `get_detected_food_items()`, `get_ai_fullness_estimate()`, `get_organization_score()`).
 - `Notification` — email subscription join (`User`↔`Location`). `notify_on` is `'empty'` (only reports ≤33% full, the default) or `'all'` (every report); `send_notification_emails()` runs on every report and filters per subscriber. The per-subscription `unsubscribe_token` doubles as the key for the no-login manage page `/subscription/<token>` (switch preference / unsubscribe via POST); the old `/unsubscribe/<token>` just redirects there so email link scanners can't unsubscribe people. `low_inventory` is unused. Subscribing by email alone creates a passwordless `User`; sign-up lets that email claim the account and keep its subscriptions. `subscribe_email_to_location()` in `views.py` is the shared subscribe path and sends the "You're subscribed" confirmation.
 
@@ -80,6 +80,10 @@ Set in `.env` (gitignored) locally; on Heroku via config vars. Names only:
 | `S3_BUCKET`, `S3_KEY`, `S3_SECRET` | Photo upload storage |
 
 `LANGCHAIN_API_KEY`/`LANGCHAIN_TRACING_V2` are present in `.env` but unused in `app/` — vestigial from earlier experimentation.
+
+## Time zones
+
+Report times are stored in UTC (Postgres timezone is UTC). Anything shown to people or grouped by hour/day/week/month must go through `location.to_local(dt)` first, so charts and logs reflect the pantry's own local time — pantries span Pacific through Eastern, and Indiana/Florida/Texas each cross zones.
 
 ## Stack notes
 

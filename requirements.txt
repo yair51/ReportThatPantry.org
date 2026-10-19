@@ -59,9 +59,11 @@ setuptools==73.0.1
 six==1.16.0
 SQLAlchemy==1.4.11
 starkbank-ecdsa==2.2.0
+timezonefinder==8.2.0
 toml==0.10.2
 tqdm==4.66.5
 typing_extensions==4.12.2
+tzdata==2025.2
 uritemplate==4.1.1
 urllib3==1.26.19
 Werkzeug==1.0.1

@@ -150,16 +150,16 @@
 <!-- When people report -->
 <div class="bb-section">
     <div class="bb-section-head"><h2>When people check in</h2></div>
-    <p class="bb-section-note">Friday alone accounts for {{ trends.friday_share }}% of all check-ins, and {{ trends.evening_share }}% of every report is filed between 5pm and midnight.</p>
+    <p class="bb-section-note">{{ trends.busiest_day }} is the busiest day, with {{ trends.busiest_day_share }}% of all check-ins, and {{ trends.peak_window_share }}% of reports are filed between {{ trends.peak_window_label }} (local time).</p>
     <div class="bb-card">
         <div class="bb-grid-2">
             <div>
                 <div style="font-size:0.85rem;color:var(--bb-text-secondary);margin-bottom:8px;">By day of week</div>
-                <div class="bb-chart-box" style="height:220px;"><canvas id="chartDow" role="img" aria-label="Bar chart of check-ins by day of week, Friday highest."></canvas></div>
+                <div class="bb-chart-box" style="height:220px;"><canvas id="chartDow" role="img" aria-label="Bar chart of check-ins by day of week, {{ trends.busiest_day }} highest."></canvas></div>
             </div>
             <div>
                 <div style="font-size:0.85rem;color:var(--bb-text-secondary);margin-bottom:8px;">By hour of day</div>
-                <div class="bb-chart-box" style="height:220px;"><canvas id="chartHour" role="img" aria-label="Bar chart of check-ins by hour of day, evenings highest."></canvas></div>
+                <div class="bb-chart-box" style="height:220px;"><canvas id="chartHour" role="img" aria-label="Bar chart of check-ins by hour of day in local time, {{ trends.peak_window_label }} highest."></canvas></div>
             </div>
         </div>
     </div>
@@ -238,7 +238,7 @@ new Chart(document.getElementById('chartDow'), {
     type: 'bar',
     data: {
         labels: dow.map(d => d.label),
-        datasets: [{ data: dow.map(d => d.count), backgroundColor: dow.map(d => d.label === 'Fri' ? BB_COLORS.accent : BB_COLORS.gray), borderRadius: 4 }]
+        datasets: [{ data: dow.map(d => d.count), backgroundColor: dow.map(d => d.label === {{ trends.busiest_day[:3] | tojson }} ? BB_COLORS.accent : BB_COLORS.gray), borderRadius: 4 }]
     },
     options: {
         responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
@@ -247,11 +247,12 @@ new Chart(document.getElementById('chartDow'), {
 });
 
 const hod = {{ trends.hour_of_day | tojson }};
+const peakStart = {{ trends.peak_start_hour | tojson }};
 new Chart(document.getElementById('chartHour'), {
     type: 'bar',
     data: {
         labels: hod.map(h => h.hour),
-        datasets: [{ data: hod.map(h => h.count), backgroundColor: hod.map(h => (h.hour >= 17 && h.hour <= 23) ? BB_COLORS.accent : BB_COLORS.gray), borderRadius: 3, barPercentage: 0.9, categoryPercentage: 0.9 }]
+        datasets: [{ data: hod.map(h => h.count), backgroundColor: hod.map(h => ((h.hour - peakStart + 24) % 24 < 3) ? BB_COLORS.accent : BB_COLORS.gray), borderRadius: 3, barPercentage: 0.9, categoryPercentage: 0.9 }]
     },
     options: {
         responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },

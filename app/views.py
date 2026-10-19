@@ -74,8 +74,8 @@ def calculate_pantry_analytics(location):
         analytics = {
             'total_reports': len(reports),
             'date_range': {
-                'start': reports[0].time,
-                'end': reports[-1].time,
+                'start': location.to_local(reports[0].time),
+                'end': location.to_local(reports[-1].time),
                 'days': (reports[-1].time - reports[0].time).days + 1
             },
             'fullness_stats': {},
@@ -127,7 +127,7 @@ def calculate_pantry_analytics(location):
         day_fullness = defaultdict(list)
         
         for report in reports:
-            day_name = calendar.day_name[report.time.weekday()]
+            day_name = calendar.day_name[location.to_local(report.time).weekday()]
             day_counts[day_name] += 1
             day_fullness[day_name].append(report.pantry_fullness)
         
@@ -181,15 +181,15 @@ def calculate_pantry_analytics(location):
         for report in chart_reports:
             chart_data_points.append({
                 'timestamp': report.time.isoformat(),
-                'date': report.time.strftime('%Y-%m-%d'),
-                'datetime': report.time.strftime('%Y-%m-%d %H:%M'),
+                'date': location.to_local(report.time).strftime('%Y-%m-%d'),
+                'datetime': location.to_local(report.time).strftime('%Y-%m-%d %H:%M'),
                 'fullness': report.pantry_fullness,
                 'ai_fullness': report.get_ai_fullness_estimate()
             })
         
         analytics['chart_data'] = {
             'data_points': chart_data_points,
-            'dates': [r.time.strftime('%Y-%m-%d') for r in chart_reports],
+            'dates': [location.to_local(r.time).strftime('%Y-%m-%d') for r in chart_reports],
             'timestamps': [r.time.isoformat() for r in chart_reports],
             'fullness_values': [r.pantry_fullness for r in chart_reports],
             'ai_fullness_values': [r.get_ai_fullness_estimate() or 0 for r in chart_reports if r.get_vision_analysis()],
@@ -214,16 +214,17 @@ def calculate_pantry_analytics(location):
         
         for report in reports:
             # Weekly grouping (Monday as start of week)
-            week_start = report.time - timedelta(days=report.time.weekday())
+            local_time = location.to_local(report.time)
+            week_start = local_time - timedelta(days=local_time.weekday())
             week_key = week_start.strftime('%Y-%m-%d')
             report_groups['weekly'][week_key].append(report)
             
             # Monthly grouping
-            month_key = report.time.strftime('%Y-%m')
+            month_key = local_time.strftime('%Y-%m')
             report_groups['monthly'][month_key].append(report)
             
             # Yearly grouping
-            year_key = report.time.strftime('%Y')
+            year_key = local_time.strftime('%Y')
             report_groups['yearly'][year_key].append(report)
         print("report_groups", report_groups)
         # Calculate averages for each period
@@ -353,8 +354,9 @@ def calculate_pantry_analytics(location):
         month_patterns = defaultdict(list)
         
         for report in reports:
-            hour_patterns[report.time.hour].append(report.pantry_fullness)
-            month_patterns[report.time.strftime('%B')].append(report.pantry_fullness)
+            local_time = location.to_local(report.time)
+            hour_patterns[local_time.hour].append(report.pantry_fullness)
+            month_patterns[local_time.strftime('%B')].append(report.pantry_fullness)
         
         # Find peak depletion hours (hours with lowest average fullness)
         hour_averages = {hour: sum(fullness_list) / len(fullness_list) 
@@ -379,7 +381,7 @@ def calculate_pantry_analytics(location):
         bucket_counts = [0] * 6
 
         for report in reports:
-            t = normalize_datetime(report.time)
+            t = location.to_local(report.time)  # Pantry's local time, not UTC
             day_counts[(t.weekday() + 1) % 7] += 1
             hour_counts[t.hour] += 1
 
@@ -1547,8 +1549,8 @@ def calculate_nationwide_analytics(locations=None):
     for report in recent_reports:
         try:
             # Normalize the report time to handle timezone issues
-            normalized_time = normalize_datetime(report.time)
-            day_key = normalized_time.strftime('%Y-%m-%d')
+            # Bucket by the calendar day at the pantry, not in UTC
+            day_key = report.location.to_local(report.time).strftime('%Y-%m-%d')
             if report.pantry_fullness is not None:
                 daily_data[day_key].append(report.pantry_fullness)
         except Exception as e:
@@ -1820,7 +1822,7 @@ def calculate_trend_analytics(locations):
     monthly_counts = defaultdict(int)
 
     for location, r in all_reports:
-        t = normalize_datetime(r.time)
+        t = location.to_local(r.time)  # Pantry's local time, so hours/days match what people experience
         day_counts[(t.weekday() + 1) % 7] += 1  # Mon=0..Sun=6 -> Sun=0..Sat=6
         hour_counts[t.hour] += 1
         monthly_counts[t.strftime('%Y-%m')] += 1
@@ -1854,9 +1856,15 @@ def calculate_trend_analytics(locations):
         for m in sorted_months
     ]
 
-    friday_share = round(100 * day_counts[5] / total_reports, 1)
-    evening_share = round(100 * sum(hour_counts[17:24]) / total_reports, 1)
-    all_times = [normalize_datetime(r.time) for _, r in all_reports]
+    full_day_names = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+    busiest_day_index = max(range(7), key=lambda d: day_counts[d])
+    busiest_day = full_day_names[busiest_day_index]
+    busiest_day_share = round(100 * day_counts[busiest_day_index] / total_reports, 1)
+    # Busiest 3-hour window of the day, in local time
+    peak_start = max(range(24), key=lambda h: sum(hour_counts[(h + i) % 24] for i in range(3)))
+    peak_window_share = round(100 * sum(hour_counts[(peak_start + i) % 24] for i in range(3)) / total_reports, 1)
+    peak_window_label = f"{format_hour(peak_start)}–{format_hour((peak_start + 3) % 24)}"
+    all_times = [location.to_local(r.time) for location, r in all_reports]
 
     fullness_values = [r.pantry_fullness for _, r in all_reports if r.pantry_fullness is not None]
     avg_fullness = round(sum(fullness_values) / len(fullness_values), 1) if fullness_values else None
@@ -1871,8 +1879,11 @@ def calculate_trend_analytics(locations):
         'concentration_pct': concentration_pct,
         'day_of_week': day_of_week,
         'hour_of_day': hour_of_day,
-        'friday_share': friday_share,
-        'evening_share': evening_share,
+        'busiest_day': busiest_day,
+        'busiest_day_share': busiest_day_share,
+        'peak_start_hour': peak_start,
+        'peak_window_label': peak_window_label,
+        'peak_window_share': peak_window_share,
         'fullness_buckets': fullness_buckets,
         'monthly_trend': monthly_trend,
     }
@@ -2102,6 +2113,12 @@ def api_nationwide_analytics():
             'success': False,
             'message': 'Insufficient data for nationwide analytics'
         })
+
+
+def format_hour(hour):
+    """0-23 -> '12am', '1pm', ..."""
+    suffix = 'am' if hour < 12 else 'pm'
+    return f"{hour % 12 or 12}{suffix}"
 
 
 def normalize_datetime(dt):

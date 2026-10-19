@@ -2,7 +2,29 @@ from . import db
 from flask import url_for
 from flask_login import UserMixin
 from sqlalchemy.sql import func
+from sqlalchemy import event, inspect
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
+
+# Fallback for pantries without coordinates - most pantries are in Oregon
+DEFAULT_TIME_ZONE = 'America/Los_Angeles'
+_timezone_finder = None
+
+
+def time_zone_for_coordinates(latitude, longitude):
+    """Return the IANA time zone name (e.g. 'America/Chicago') at a point, or None."""
+    global _timezone_finder
+    if latitude is None or longitude is None:
+        return None
+    try:
+        if _timezone_finder is None:
+            # Loaded on first use - it reads the bundled time zone boundary data
+            from timezonefinder import TimezoneFinder
+            _timezone_finder = TimezoneFinder()
+        return _timezone_finder.timezone_at(lng=longitude, lat=latitude)
+    except Exception as e:
+        print(f"Time zone lookup failed for ({latitude}, {longitude}): {e}")
+        return None
 
 
 class User(db.Model, UserMixin):
@@ -43,6 +65,21 @@ class Location(db.Model, UserMixin):
     verified = db.Column(db.Boolean, default=False)  # Whether email is verified
     verified_at = db.Column(db.DateTime(timezone=True), nullable=True)  # When verified
     created_at = db.Column(db.DateTime(timezone=True), default=datetime.now(timezone.utc))
+    # IANA time zone name, filled in from latitude/longitude on save. Report times stay stored in UTC;
+    # this is only used to show and group them in the pantry's local time.
+    time_zone = db.Column(db.String(50), nullable=True)
+
+    def to_local(self, dt):
+        """Convert a stored (UTC) datetime to this pantry's local time."""
+        if dt is None:
+            return None
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        try:
+            zone = ZoneInfo(self.time_zone or DEFAULT_TIME_ZONE)
+        except Exception:
+            zone = ZoneInfo(DEFAULT_TIME_ZONE)
+        return dt.astimezone(zone)
 
 
     def to_dict(self):
@@ -52,6 +89,16 @@ class Location(db.Model, UserMixin):
             'status': self.status,
             'time': self.time.strftime("%c")  # Format the datetime object
         }
+
+@event.listens_for(Location, 'before_insert')
+@event.listens_for(Location, 'before_update')
+def set_location_time_zone(mapper, connection, location):
+    # Covers every way a pantry is added or moved (add, edit, email-only submission)
+    state = inspect(location)
+    coordinates_changed = state.attrs.latitude.history.has_changes() or state.attrs.longitude.history.has_changes()
+    if location.time_zone is None or coordinates_changed:
+        location.time_zone = time_zone_for_coordinates(location.latitude, location.longitude) or location.time_zone
+
 
 class Report(db.Model):
     id = db.Column(db.Integer, primary_key=True)

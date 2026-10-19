@@ -127,7 +127,7 @@
                     <i class="fas fa-basket-shopping"></i>
                     {{ fullness }}% &mdash; {{ 'Empty' if fullness <= 33 else ('Half Full' if fullness <= 67 else 'Full') }}
                 </span>
-                <span class="pg-updated report-time" data-utc-time="{{ latest_report.time.isoformat() }}">Last updated {{ latest_report.time.strftime('%Y-%m-%d %H:%M') }}</span>
+                <span class="pg-updated report-time" data-utc-time="{{ latest_report.time.isoformat() }}">Last updated {{ pantry.to_local(latest_report.time).strftime('%b %-d, %Y %-I:%M %p %Z') }}</span>
             {% else %}
                 <span class="pg-status-pill unknown"><i class="fas fa-circle-question"></i> No reports yet</span>
             {% endif %}
@@ -287,7 +287,7 @@
                 {% endif %}
                 <div style="flex:1;">
                     <span class="pg-log-badge {{ 'empty' if report.pantry_fullness <= 33 else ('half' if report.pantry_fullness <= 67 else 'full') }}">{{ report.pantry_fullness }}%</span>
-                    <span class="pg-log-time ms-2">{{ report.time.strftime('%Y-%m-%d %H:%M') }} &middot; {{ 'Registered user' if report.user_id else 'Anonymous' }}</span>
+                    <span class="pg-log-time ms-2">{{ pantry.to_local(report.time).strftime('%b %-d, %Y %-I:%M %p %Z') }} &middot; {{ 'Registered user' if report.user_id else 'Anonymous' }}</span>
                     {% if report.description %}<div class="pg-log-desc">{{ report.description }}</div>{% endif %}
                     {% set vision = report.get_vision_analysis() %}
                     {% if vision and vision.get('food_items') %}
