@@ -629,6 +629,26 @@
         </div>
     </div>
 
+    <!-- Post-report subscription prompt -->
+    <div class="report-card" id="subscribePrompt" style="display: none;">
+        <div class="card-header">
+            <h1><i class="fas fa-check-circle"></i> Thanks for reporting!</h1>
+            <p>Want to know when {{ location.name }} needs help?</p>
+        </div>
+        <div class="card-body" style="padding: 25px;">
+            <form id="promptSubscribeForm" style="margin: 0;">
+                <div class="mb-3" style="display: flex; gap: 18px; flex-wrap: wrap;">
+                    <label style="margin: 0; cursor: pointer;"><input type="radio" name="notify_on" value="empty" checked style="margin-right: 6px;"> Only when it's empty</label>
+                    <label style="margin: 0; cursor: pointer;"><input type="radio" name="notify_on" value="all" style="margin-right: 6px;"> Every report</label>
+                </div>
+                <input type="email" class="form-control mb-3" id="promptEmail" placeholder="Enter your email address" required{% if user.is_authenticated %} value="{{ user.email }}"{% endif %}>
+                <button type="submit" class="btn btn-primary btn-block"><i class="fas fa-bell"></i> Email me alerts</button>
+            </form>
+            <div id="promptMessage" class="alert mt-3" style="display: none;"></div>
+            <p class="text-center mt-3 mb-0"><a href="#" id="promptSkip">No thanks, take me to the pantry</a></p>
+        </div>
+    </div>
+
     <!-- Loading Animation -->
     <div class="loading-spinner" id="loadingSpinner">
         <div class="spinner"></div>
@@ -1123,12 +1143,19 @@
             loadingSpinner.style.display = 'none';
             
             if (data.success) {
-                // Redirect immediately to pantry page instead of showing share section
-                if (data.redirect_url) {
-                    window.location.href = data.redirect_url;
-                } else {
-                    window.location.reload();
+                const goToPantry = () => {
+                    if (data.redirect_url) {
+                        window.location.href = data.redirect_url;
+                    } else {
+                        window.location.reload();
+                    }
+                };
+                // Already subscribed - go straight to the pantry page
+                if (data.subscribed) {
+                    goToPantry();
+                    return;
                 }
+                showSubscribePrompt(goToPantry);
             } else {
                 // Show error and restore form
                 document.querySelector('.report-card').style.display = 'block';
@@ -1145,6 +1172,57 @@
 
     // Add form submission event listener after function declaration
     reportForm.addEventListener('submit', formSubmitHandler);
+
+    // Ask reporters to subscribe - they're standing at the pantry and care about it
+    function showSubscribePrompt(goToPantry) {
+        const prompt = document.getElementById('subscribePrompt');
+        const form = document.getElementById('promptSubscribeForm');
+        const message = document.getElementById('promptMessage');
+        prompt.style.display = 'block';
+        prompt.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+        document.getElementById('promptSkip').addEventListener('click', (e) => {
+            e.preventDefault();
+            goToPantry();
+        });
+
+        form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const button = form.querySelector('button[type="submit"]');
+            button.disabled = true;
+            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Subscribing...';
+
+            fetch('/location/subscribe/{{ location.id }}', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    email: document.getElementById('promptEmail').value.trim(),
+                    notify_on: form.querySelector('input[name="notify_on"]:checked').value
+                })
+            })
+            .then(response => response.json())
+            .then(result => {
+                message.style.display = 'block';
+                message.textContent = result.message;
+                if (result.success) {
+                    message.className = 'alert alert-success mt-3';
+                    form.style.display = 'none';
+                    setTimeout(goToPantry, 2500);
+                } else {
+                    message.className = 'alert alert-danger mt-3';
+                    button.disabled = false;
+                    button.innerHTML = '<i class="fas fa-bell"></i> Email me alerts';
+                }
+            })
+            .catch(() => {
+                message.style.display = 'block';
+                message.className = 'alert alert-danger mt-3';
+                message.textContent = 'Something went wrong. Please try again.';
+                button.disabled = false;
+                button.innerHTML = '<i class="fas fa-bell"></i> Email me alerts';
+            });
+        });
+    }
 </script>
 
 {% endblock %}

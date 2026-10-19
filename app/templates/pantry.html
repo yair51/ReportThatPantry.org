@@ -102,6 +102,9 @@
 
     .pg-subscribe-card { background: var(--pg-sunken); border-radius: 16px; padding: 24px 26px; }
     .pg-subscribe-card input[type=email] { border-radius: 10px; }
+    .pg-notify-options { display: flex; gap: 18px; flex-wrap: wrap; color: var(--pg-text-secondary); }
+    .pg-notify-options label { margin: 0; cursor: pointer; }
+    .pg-notify-options input { margin-right: 6px; accent-color: var(--pg-accent); }
 
     @media (max-width: 768px) {
         .pg-title { font-size: 1.8rem; }
@@ -132,6 +135,7 @@
 
         <div class="pg-actions">
             <a href="{{ url_for('views.report', id=pantry.id) }}" class="pg-btn primary"><i class="fas fa-clipboard-check"></i> Report status</a>
+            <a href="#get-alerts" class="pg-btn"><i class="fas fa-bell"></i> Get alerts</a>
             <a href="https://www.google.com/maps/search/?api=1&query={{ pantry.latitude }},{{ pantry.longitude }}&zoom=16" target="_blank" class="pg-btn"><i class="fas fa-diamond-turn-right"></i> Directions</a>
             <button onclick="shareOnFacebook()" class="pg-btn"><i class="fab fa-facebook-f"></i> Share</button>
             {% if can_edit %}
@@ -143,6 +147,28 @@
 </div>
 
 <div class="container-pg">
+
+<div class="pg-section" id="get-alerts">
+    <div class="pg-subscribe-card">
+        <h2 style="margin-bottom:6px;"><i class="fas fa-envelope"></i> Get alerts for this pantry</h2>
+        <p class="pg-section-note" style="margin-bottom:14px;">
+            Neighbors who get alerts help pantries get restocked faster.
+            {% set subscriber_count = pantry.notifications|length %}
+            {% if subscriber_count == 1 %}1 neighbor already gets alerts for this pantry.{% elif subscriber_count > 1 %}{{ subscriber_count }} neighbors already get alerts for this pantry.{% endif %}
+        </p>
+        <form id="subscriptionForm" onsubmit="handleSubscription(event)">
+            <div class="pg-notify-options mb-2">
+                <label><input type="radio" name="notify_on" value="empty" checked> Only when it's empty</label>
+                <label><input type="radio" name="notify_on" value="all"> Every report</label>
+            </div>
+            <div class="d-flex" style="gap:10px; flex-wrap:wrap;">
+                <input type="email" class="form-control" id="subscriptionEmail" placeholder="Enter your email address" required style="max-width:320px;"{% if user.is_authenticated %} value="{{ user.email }}"{% endif %}>
+                <button type="submit" class="btn btn-primary"><i class="fas fa-bell"></i> Subscribe</button>
+            </div>
+        </form>
+        <div id="subscriptionMessage" class="mt-2" style="display: none;"></div>
+    </div>
+</div>
 
 {% if analytics %}
 <div class="pg-kpi-row">
@@ -289,17 +315,6 @@
     </div>
 </div>
 
-<div class="pg-section">
-    <div class="pg-subscribe-card">
-        <h2 style="margin-bottom:6px;"><i class="fas fa-envelope"></i> Get notified</h2>
-        <p class="pg-section-note" style="margin-bottom:14px;">Get an email alert when this pantry is reported running low.</p>
-        <form id="subscriptionForm" onsubmit="handleSubscription(event)" class="d-flex" style="gap:10px; flex-wrap:wrap;">
-            <input type="email" class="form-control" id="subscriptionEmail" placeholder="Enter your email address" required style="max-width:320px;">
-            <button type="submit" class="btn btn-primary"><i class="fas fa-bell"></i> Subscribe</button>
-        </form>
-        <div id="subscriptionMessage" class="mt-2" style="display: none;"></div>
-    </div>
-</div>
 
 </div>
 
@@ -434,15 +449,17 @@ function handleSubscription(event) {
     fetch('/location/subscribe/{{ pantry.id }}', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email })
+        body: JSON.stringify({
+            email: email,
+            notify_on: event.target.querySelector('input[name="notify_on"]:checked').value
+        })
     })
     .then(response => response.json())
     .then(data => {
         messageDiv.style.display = 'block';
         if (data.success) {
             messageDiv.className = 'alert alert-success mt-2';
-            messageDiv.innerHTML = '<i class="fas fa-check-circle"></i> ' + data.message;
-            document.getElementById('subscriptionEmail').value = '';
+            messageDiv.textContent = data.message;
             submitBtn.innerHTML = '<i class="fas fa-check"></i> Subscribed!';
             setTimeout(() => {
                 submitBtn.innerHTML = '<i class="fas fa-bell"></i> Subscribe';
@@ -450,7 +467,7 @@ function handleSubscription(event) {
             }, 3000);
         } else {
             messageDiv.className = 'alert alert-danger mt-2';
-            messageDiv.innerHTML = '<i class="fas fa-exclamation-circle"></i> ' + data.message;
+            messageDiv.textContent = data.message;
             submitBtn.innerHTML = '<i class="fas fa-bell"></i> Subscribe';
             submitBtn.disabled = false;
         }

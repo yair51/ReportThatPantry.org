@@ -128,7 +128,21 @@ class Notification(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     location_id = db.Column(db.Integer, db.ForeignKey('location.id'))
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
-    low_inventory = db.Column(db.Boolean, default=True)
-    unsubscribe_token = db.Column(db.String(100), unique=True, nullable=True)
-    created_at = db.Column(db.DateTime(timezone=True), default=datetime.now(timezone.utc))   
+    low_inventory = db.Column(db.Boolean, default=True)  # Unused - superseded by notify_on
+    unsubscribe_token = db.Column(db.String(100), unique=True, nullable=True)  # Also used for the manage-subscription page
+    created_at = db.Column(db.DateTime(timezone=True), default=datetime.now(timezone.utc))
+    # When to email: 'empty' = only reports at or below 33% full, 'all' = every report
+    notify_on = db.Column(db.String(10), nullable=False, default='empty', server_default='empty')
+
+    NOTIFY_CHOICES = ('empty', 'all')
+
+    def wants_report(self, report):
+        return self.notify_on == 'all' or (report.pantry_fullness is not None and report.pantry_fullness <= 33)
+
+    def ensure_token(self):
+        # Older subscriptions were created without a token
+        if not self.unsubscribe_token:
+            import secrets
+            self.unsubscribe_token = secrets.token_urlsafe(32)
+        return self.unsubscribe_token
 

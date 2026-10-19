@@ -6,6 +6,8 @@ from .models import Location, Report, Notification, User
 from app.helpers import send_email, allowed_file, upload_photo_to_s3, delete_photo_from_s3, generate_qr_poster_pdf, get_state_full_name, convert_heic_to_jpeg, is_heic_file
 from . import db, Message, mail
 import json
+import re
+from markupsafe import escape
 from datetime import datetime, timezone, timedelta
 from time import mktime
 from sqlalchemy import func, and_, desc
@@ -484,52 +486,136 @@ def generate_pantry_insights(analytics, reports):
         return insights
 
 
-# Takes a report and location as arguments and sends notification emails for that location
-def send_notification_emails(location, report, image_data=None):
-    notifications = location.notifications
-    if notifications:
-        subject = f"{location.name} is Empty!"
-        location_url = url_for('views.location', location_id=location.id, _external=True)
-        
-        # Send individual emails to each subscriber with their unique unsubscribe link
-        for notification in notifications:
-            if notification.user and notification.user.email:
-                # Generate token if it doesn't exist (for existing subscriptions)
-                if not notification.unsubscribe_token:
-                    import secrets
-                    notification.unsubscribe_token = secrets.token_urlsafe(32)
-                    notification.created_at = datetime.now(timezone.utc)
-                    db.session.commit()
-                
-                unsubscribe_url = url_for('views.unsubscribe_from_email', token=notification.unsubscribe_token, _external=True)
-                
-                html = f"""
-                <h3>🚨 {location.name} Needs Restocking!</h3>
-                
-                <p>The Little Free Pantry located at <strong>{location.address}, {location.city}, {location.state}</strong> is currently running low on supplies.</p>
-                
-                <p><strong>Can you help restock it?</strong></p>
-                
-                {f'<p><strong>Recent Update:</strong> {report.description}</p>' if report.description else ''}
-                
-                {f'<p>📸 A new photo has been uploaded - check it out on the website!</p>' if report.photo else ''}
-                
-                <p><a href="{location_url}" style="background-color: #4a90e2; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block;">View Pantry Details</a></p>
-                
+NOTIFY_ON_LABELS = {
+    'empty': "only when it's reported empty",
+    'all': 'every time someone reports on it',
+}
+
+
+def _email_button(url, label, color="#4a90e2"):
+    return f'<a href="{url}" style="background-color: {color}; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block;">{label}</a>'
+
+
+def _subscription_footer(notification):
+    manage_url = url_for('views.manage_subscription', token=notification.ensure_token(), _external=True)
+    return f"""
                 <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
-                
+
                 <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin-top: 20px;">
                     <p style="font-size: 12px; color: #666; margin: 0 0 10px 0;">
-                        You're receiving this email because you're subscribed to updates for this pantry.
+                        You're receiving this email because you subscribed to updates for this pantry
+                        ({NOTIFY_ON_LABELS.get(notification.notify_on, NOTIFY_ON_LABELS['empty'])}).
                     </p>
-                    <a href="{unsubscribe_url}" style="background-color: #dc3545; color: white; padding: 8px 16px; text-decoration: none; border-radius: 4px; font-size: 12px; display: inline-block;">Unsubscribe from this pantry</a>
+                    <a href="{manage_url}" style="color: #4a90e2; font-size: 12px;">Change how often you hear from us, or unsubscribe</a>
                 </div>
-                
+    """
+
+
+# Takes a report and location as arguments and emails every subscriber who wants this kind of report
+def send_notification_emails(location, report, image_data=None):
+    location_url = url_for('views.location', location_id=location.id, _external=True)
+    name = escape(location.name)
+    address = escape(f"{location.address}, {location.city}, {location.state}")
+    is_empty = report.pantry_fullness is not None and report.pantry_fullness <= 33
+
+    for notification in location.notifications:
+        if not (notification.user and notification.user.email) or not notification.wants_report(report):
+            continue
+
+        if is_empty:
+            subject = f"{location.name} is Empty!"
+            heading = f"🚨 {name} Needs Restocking!"
+            body = f"""<p>The Little Free Pantry located at <strong>{address}</strong> was just reported as <strong>{report.pantry_fullness}% full</strong>.</p>
+
+                <p><strong>Can you help restock it?</strong></p>"""
+        else:
+            subject = f"New report for {location.name}: {report.get_status()} ({report.pantry_fullness}%)"
+            heading = f"📦 New report for {name}"
+            body = f"""<p>Someone just reported that the Little Free Pantry at <strong>{address}</strong> is <strong>{report.pantry_fullness}% full ({report.get_status()})</strong>.</p>"""
+
+        html = f"""
+                <h3>{heading}</h3>
+
+                {body}
+
+                {f'<p><strong>Recent Update:</strong> {escape(report.description)}</p>' if report.description else ''}
+
+                {f'<p>📸 A new photo has been uploaded - check it out on the website!</p>' if report.photo else ''}
+
+                <p>{_email_button(location_url, "View Pantry Details")}</p>
+
+                {_subscription_footer(notification)}
+
                 <p>Thank you for being part of our community!</p>
                 <p><strong>Report That Pantry Team</strong></p>
                 """
-                
-                send_email([notification.user.email], subject, html)
+
+        send_email([notification.user.email], subject, html)
+
+    # Persist any unsubscribe tokens generated for older subscriptions
+    db.session.commit()
+
+
+def send_subscription_confirmation(notification):
+    location = notification.location
+    location_url = url_for('views.location', location_id=location.id, _external=True)
+    name = escape(location.name)
+    html = f"""
+                <h3>✅ You're subscribed to {name}</h3>
+
+                <p>You'll get an email about the Little Free Pantry at <strong>{escape(f"{location.address}, {location.city}, {location.state}")}</strong>
+                {NOTIFY_ON_LABELS.get(notification.notify_on, NOTIFY_ON_LABELS['empty'])}.</p>
+
+                <p>When a pantry runs empty, a quick restock from a neighbor makes a real difference. Thank you for keeping an eye on this one!</p>
+
+                <p>{_email_button(location_url, "View Pantry Details")}</p>
+
+                {_subscription_footer(notification)}
+
+                <p><strong>Report That Pantry Team</strong></p>
+                """
+    send_email([notification.user.email], f"You're subscribed to {location.name}", html)
+    db.session.commit()
+
+
+EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+
+def subscribe_email_to_location(email, location, notify_on='empty'):
+    """
+    Subscribe an email address to a pantry, creating an email-only user if needed.
+    Returns (notification, status) where status is 'created', 'updated' or 'unchanged'.
+    """
+    if notify_on not in Notification.NOTIFY_CHOICES:
+        notify_on = 'empty'
+
+    user = User.query.filter(func.lower(User.email) == email.lower()).first()
+    if not user:
+        # Email-only user (no password) - they can claim it later by signing up
+        user = User(email=email, first_name="", last_name="")
+        db.session.add(user)
+        db.session.flush()  # Get the user ID
+
+    notification = Notification.query.filter_by(user_id=user.id, location_id=location.id).first()
+    if notification:
+        if notification.notify_on == notify_on:
+            return notification, 'unchanged'
+        notification.notify_on = notify_on
+        db.session.commit()
+        return notification, 'updated'
+
+    import secrets
+    notification = Notification(
+        user_id=user.id,
+        location_id=location.id,
+        unsubscribe_token=secrets.token_urlsafe(32),
+        created_at=datetime.now(timezone.utc),
+        notify_on=notify_on
+    )
+    db.session.add(notification)
+    db.session.commit()
+    send_subscription_confirmation(notification)
+    return notification, 'created'
 
 
 # List of US states and abbreviations
@@ -921,20 +1007,23 @@ def report(id):
         db.session.add(new_report)
         db.session.commit()
 
-        # Send email notification if the pantry is empty
-        if new_report.pantry_fullness <= 33:  # Check for empty status
-            send_notification_emails(location, new_report)
+        # Email subscribers - each one is filtered by their notify_on preference
+        send_notification_emails(location, new_report)
 
         # Return JSON response for AJAX (modern interface)
+        already_subscribed = current_user.is_authenticated and Notification.query.filter_by(
+            user_id=current_user.id, location_id=location.id).first() is not None
+
         return jsonify({
-            'success': True, 
+            'success': True,
+            'subscribed': already_subscribed,
             'message': 'Thank you for your report!',
             'location_id': location.id,
             'redirect_url': url_for('views.location', location_id=id)
         })
 
     # Use the modern demo template for GET requests
-    return render_template("report-demo.html", user=current_user, title="Report Pantry Status", location_id=id) 
+    return render_template("report-demo.html", user=current_user, title="Report Pantry Status", location_id=id, location=location)
 
 
 # Route to serve images from S3
@@ -1073,16 +1162,10 @@ def subscribe():
             return jsonify({'status': 'unsubscribed', 'message': 'Unsubscribed successfully'})
         else:
             # Subscribe
-            import secrets
-            unsubscribe_token = secrets.token_urlsafe(32)
-            new_subscription = Notification(
-                user_id=current_user.id, 
-                location_id=location_id,
-                unsubscribe_token=unsubscribe_token,
-                created_at=datetime.now(timezone.utc)
-            )
-            db.session.add(new_subscription)
-            db.session.commit()
+            location = Location.query.get(location_id)
+            if not location:
+                return jsonify({'status': 'error', 'message': 'Invalid location_id'})
+            subscribe_email_to_location(current_user.email, location)
             return jsonify({'status': 'subscribed', 'message': 'Subscribed successfully'})
 
     return jsonify({'status': 'error', 'message': 'Invalid location_id'})
@@ -1091,87 +1174,45 @@ def subscribe():
 # Handles changes to subscription preferences on pantry homepage
 @views.route('/location/subscribe/<int:location_id>', methods=['POST'])
 def subscribe_location(location_id):
-    print("Subscription endpoint accessed")
-    
     # Check if location exists
     location = Location.query.get(location_id)
     if not location:
         return jsonify({'success': False, 'message': 'Location does not exist'}), 404
-    
-    # Handle JSON requests (for email subscription form)
+
+    # Handle JSON requests (email subscription forms on the pantry and report pages)
     if request.is_json:
         data = request.get_json()
-        email = data.get('email', '').strip()
-        
+        email = (data.get('email') or '').strip()
+        notify_on = data.get('notify_on', 'empty')
+
         if not email:
             return jsonify({'success': False, 'message': 'Email address is required'}), 400
-        
-        # Check if user with this email already exists
-        existing_user = User.query.filter_by(email=email).first()
-        
-        if existing_user:
-            # Check if already subscribed
-            existing_subscription = Notification.query.filter_by(user_id=existing_user.id, location_id=location_id).first()
-            if existing_subscription:
-                return jsonify({'success': False, 'message': 'This email is already subscribed to this pantry'})
-            else:
-                # Subscribe existing user
-                import secrets
-                unsubscribe_token = secrets.token_urlsafe(32)
-                new_subscription = Notification(
-                    user_id=existing_user.id, 
-                    location_id=location_id,
-                    unsubscribe_token=unsubscribe_token,
-                    created_at=datetime.now(timezone.utc)
-                )
-                db.session.add(new_subscription)
-                db.session.commit()
-                return jsonify({'success': True, 'message': 'Successfully subscribed to pantry updates!'})
-        else:
-            # Create new user account and subscribe
-            new_user = User(email=email, first_name="", last_name="")
-            db.session.add(new_user)
-            db.session.flush()  # Get the user ID
-            
-            import secrets
-            unsubscribe_token = secrets.token_urlsafe(32)
-            new_subscription = Notification(
-                user_id=new_user.id, 
-                location_id=location_id,
-                unsubscribe_token=unsubscribe_token,
-                created_at=datetime.now(timezone.utc)
-            )
-            db.session.add(new_subscription)
-            db.session.commit()
+        if not EMAIL_PATTERN.match(email):
+            return jsonify({'success': False, 'message': 'Please enter a valid email address'}), 400
 
-            return jsonify({'success': True, 'message': 'Subscribed to this pantry\'s updates!'})
+        notification, status = subscribe_email_to_location(email, location, notify_on)
+        when = NOTIFY_ON_LABELS[notification.notify_on]
+        messages = {
+            'created': f"You're subscribed! We'll email you {when}. Check your inbox for a confirmation.",
+            'updated': f"Updated - we'll now email you {when}.",
+            'unchanged': f"You're already subscribed - we'll email you {when}.",
+        }
+        return jsonify({'success': True, 'status': status, 'message': messages[status]})
 
     # Handle form-based requests (for authenticated users)
     if not current_user.is_authenticated:
         flash('Please log in to subscribe to notifications for this pantry.', 'info')
         return redirect(url_for('auth.login'))
-    
-    location_id = int(location_id)
-    # Check if the user is already subscribed and toggle the subscription
+
+    # Toggle the subscription
     existing_subscription = Notification.query.filter_by(user_id=current_user.id, location_id=location_id).first()
-    
+
     if existing_subscription:
-        # Unsubscribe
         db.session.delete(existing_subscription)
         db.session.commit()
         flash('You have successfully unsubscribed from this pantry.', 'success')
     else:
-        # Subscribe
-        import secrets
-        unsubscribe_token = secrets.token_urlsafe(32)
-        new_subscription = Notification(
-            user_id=current_user.id, 
-            location_id=location_id,
-            unsubscribe_token=unsubscribe_token,
-            created_at=datetime.now(timezone.utc)
-        )
-        db.session.add(new_subscription)
-        db.session.commit()
+        subscribe_email_to_location(current_user.email, location, request.form.get('notify_on', 'empty'))
         flash('You have successfully subscribed to this pantry.', 'success')
 
     return redirect(url_for('views.location', location_id=location_id))  # Redirect back to the location page
@@ -1257,27 +1298,45 @@ def how_it_works():
 
 @views.route('/unsubscribe/<token>')
 def unsubscribe_from_email(token):
+    # Old emails link here - send them to the manage page, which needs a button press to unsubscribe
+    return redirect(url_for('views.manage_subscription', token=token))
+
+
+@views.route('/subscription/<token>', methods=['GET', 'POST'])
+def manage_subscription(token):
     """
-    Unsubscribe a user from a specific pantry via email link
-    Uses a secure token to prevent unauthorized unsubscriptions
+    Manage one pantry subscription from an email link, no login needed.
+    The token is the subscription's unsubscribe_token.
     """
-    # Find the notification by token
     notification = Notification.query.filter_by(unsubscribe_token=token).first()
-    
+
     if not notification:
-        flash('Invalid unsubscribe link. Please contact support if you need help.', 'error')
+        flash('This subscription link is invalid or you have already unsubscribed.', 'error')
         return redirect(url_for('views.home'))
-    
-    # Get the location name before deleting
-    location = Location.query.get(notification.location_id)
+
+    location = notification.location
     location_name = location.name if location else "this pantry"
-    
-    # Remove the notification subscription
-    db.session.delete(notification)
-    db.session.commit()
-    
-    flash(f'You have been successfully unsubscribed from notifications for {location_name}.', 'success')
-    return redirect(url_for('views.home'))
+
+    if request.method == 'POST':
+        action = request.form.get('action')
+        if action == 'unsubscribe':
+            db.session.delete(notification)
+            db.session.commit()
+            flash(f'You have been unsubscribed from {location_name}.', 'success')
+            return redirect(url_for('views.location', location_id=location.id) if location else url_for('views.home'))
+        if action in Notification.NOTIFY_CHOICES:
+            notification.notify_on = action
+            db.session.commit()
+            flash(f"Saved - we'll email you {NOTIFY_ON_LABELS[action]}.", 'success')
+        return redirect(url_for('views.manage_subscription', token=token))
+
+    return render_template("subscription.html",
+                         user=current_user,
+                         notification=notification,
+                         location=location,
+                         notify_on_labels=NOTIFY_ON_LABELS,
+                         title="Manage Subscription")
+
 
 @views.route('/vision-demo', methods=['GET', 'POST'])
 def vision_demo():

@@ -26,6 +26,10 @@ def login():
         password = request.form.get('Password')
 
         user = User.query.filter_by(email=email).first()
+        if user and not user.password:
+            # Email-only subscriber (created by subscribing to a pantry) - no password yet
+            flash('This email gets pantry alerts but has no account yet. Sign up below to create a password.', category='info')
+            return redirect(url_for('auth.sign_up'))
         if user:
             if check_password_hash(user.password, password):
                 flash('Logged in successfully!', category='success')
@@ -58,10 +62,10 @@ def sign_up():
         age = request.form.get('age')
         user_type = request.form.get('description')
 
-        # Check if email already exists
+        # Check if email already exists. Email-only subscribers (no password) can claim their account here.
         user = User.query.filter_by(email=email).first()
         # Server-side form validation
-        if user:
+        if user and user.password:
             flash('Email already exists.', category='error')
         elif len(email) < 4:
             flash('Email must be greater than 3 characters.', category='error')
@@ -75,9 +79,12 @@ def sign_up():
         else:
             print(age)
             print(len(age))
-            new_user = User(email=email, first_name=first_name, last_name=last_name, password=generate_password_hash(
-                password, method='sha256'), user_type=user_type)
-            
+            new_user = user or User(email=email)  # Keeps an email-only subscriber's existing subscriptions
+            new_user.first_name = first_name
+            new_user.last_name = last_name
+            new_user.password = generate_password_hash(password, method='sha256')
+            new_user.user_type = user_type
+
             # Set age if it is inputted
             if len(age) != 0:
                 new_user.age = age

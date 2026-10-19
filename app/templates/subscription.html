@@ -1,0 +1,44 @@
+{% extends "base-new.html" %}
+
+{% block title %} Manage Subscription - Report That Pantry {% endblock %}
+
+{% block style %}
+<style>
+    body { background: #F7F3EA !important; }
+    .sub-card { max-width: 560px; margin: 40px auto; background: #FFFFFF; border-radius: 16px; padding: 28px; border: 1px solid rgba(34,29,22,0.12); }
+    .sub-card form { margin: 0; }
+    .sub-card h1 { font-size: 1.5rem; margin-bottom: 4px; }
+    .sub-card .sub-address { color: #6B6255; margin-bottom: 22px; }
+    .sub-option { display: flex; align-items: flex-start; gap: 12px; width: 100%; text-align: left; background: #EFE9DC; border: 2px solid transparent; border-radius: 12px; padding: 14px 16px; margin-bottom: 10px; cursor: pointer; }
+    .sub-option.selected { border-color: #B8752E; background: #F1E1C6; cursor: default; }
+    .sub-option i { margin-top: 3px; color: #8A5420; }
+    .sub-option small { display: block; color: #6B6255; }
+    .sub-unsubscribe { background: none; border: none; color: #B8483C; text-decoration: underline; padding: 0; margin-top: 14px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="sub-card">
+    <h1><i class="fas fa-bell"></i> {{ location.name }}</h1>
+    <p class="sub-address">{{ location.address }}, {{ location.city }}, {{ location.state }}<br>
+        <small>Emails go to {{ notification.user.email }}</small></p>
+
+    <p><strong>Email me about this pantry:</strong></p>
+    <form method="POST">
+        <button type="submit" name="action" value="empty" class="sub-option {{ 'selected' if notification.notify_on == 'empty' }}">
+            <i class="{{ 'fas fa-circle-dot' if notification.notify_on == 'empty' else 'far fa-circle' }}"></i>
+            <span><strong>Only when it's empty</strong><small>One email when someone reports it at 33% full or less.</small></span>
+        </button>
+        <button type="submit" name="action" value="all" class="sub-option {{ 'selected' if notification.notify_on == 'all' }}">
+            <i class="{{ 'fas fa-circle-dot' if notification.notify_on == 'all' else 'far fa-circle' }}"></i>
+            <span><strong>Every report</strong><small>An email each time someone reports how full it is.</small></span>
+        </button>
+    </form>
+
+    <form method="POST" onsubmit="return confirm('Stop all emails about this pantry?');">
+        <button type="submit" name="action" value="unsubscribe" class="sub-unsubscribe">Unsubscribe from this pantry</button>
+    </form>
+
+    <p class="mt-4 mb-0"><a href="{{ url_for('views.location', location_id=location.id) }}"><i class="fas fa-arrow-left"></i> Back to the pantry page</a></p>
+</div>
+{% endblock %}
