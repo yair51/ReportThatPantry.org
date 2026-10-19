@@ -1,8 +1,6 @@
 from . import mail
 from flask import current_app, flash
 from flask_mail import Message
-from sendgrid import SendGridAPIClient
-from sendgrid.helpers.mail import Mail, From, To
 import os
 from werkzeug.utils import secure_filename
 import uuid
@@ -56,74 +54,56 @@ def get_state_full_name(abbreviation):
 # Send mail function
 def send_email(to, subject, html_content, attachments=None):
     """
-    Send email with optional attachments
-    
+    Send email over SMTP (Brevo in production, Mailtrap in development) with optional attachments
+
     Args:
         to: Email recipient(s) - can be string or list
         subject: Email subject
         html_content: HTML content of email
         attachments: List of dictionaries with 'filename' and 'content' keys
+
+    Returns:
+        True if every recipient was sent to, False otherwise. Failures are logged at ERROR level.
     """
     # Ensure 'to' is always a list
     if isinstance(to, str):
         to = [to]
-    
-    # Use Mailtrap for development
-    if current_app.config['MAIL_SERVER'] == 'smtp.mailtrap.io':
-        # Send mail to each user
+
+    config = current_app.config
+    missing = [key for key in ('MAIL_SERVER', 'MAIL_USERNAME', 'MAIL_PASSWORD', 'MAIL_DEFAULT_SENDER') if not config.get(key)]
+    if missing:
+        current_app.logger.error(f"EMAIL NOT SENT - missing config {', '.join(missing)} (subject: {subject!r}, to: {to})")
+        return False
+
+    all_sent = True
+    try:
         with mail.connect() as conn:
+            # Send mail to each user individually so recipients don't see each other
             for recipient in to:
-                msg = Message(subject, sender=current_app.config['MAIL_USERNAME'], recipients=[recipient])
-                msg.html = html_content  # Set the HTML content of the email directly
-                
-                # Add attachments if provided
-                if attachments:
-                    for attachment in attachments:
-                        msg.attach(
-                            attachment['filename'],
-                            attachment.get('content_type', 'application/pdf'),
-                            attachment['content']
-                        )
-                
-                conn.send(msg)
+                try:
+                    msg = Message(subject, recipients=[recipient])
+                    msg.html = html_content  # Set the HTML content of the email directly
 
-    # Use SendGrid for staging/production
-    else:
-        try:
-            sg = SendGridAPIClient(os.environ.get('SENDGRID_API_KEY'))
-            
-            for recipient in to:
-                message = Mail(
-                    from_email=From(email="info@reportthatpantry.org", name="Report That Pantry"),  # Updated From email
-                    to_emails=To(recipient),  # Send to one recipient at a time
-                    subject=subject,
-                    html_content=html_content
-                )
-                
-                # Add attachments if provided
-                if attachments:
-                    from sendgrid.helpers.mail import Attachment, FileContent, FileName, FileType, Disposition
-                    import base64
-                    
-                    for attachment in attachments:
-                        encoded_content = base64.b64encode(attachment['content']).decode()
-                        attachment_obj = Attachment(
-                            FileContent(encoded_content),
-                            FileName(attachment['filename']),
-                            FileType(attachment.get('content_type', 'application/pdf')),
-                            Disposition('attachment')
-                        )
-                        message.attachment = attachment_obj
-                
-                response = sg.send(message)
-                print(f"SendGrid response: {response.status_code}")
-                if response.status_code != 202:
-                    print(f"SendGrid error: {response.body}")
+                    # Add attachments if provided
+                    if attachments:
+                        for attachment in attachments:
+                            msg.attach(
+                                attachment['filename'],
+                                attachment.get('content_type', 'application/pdf'),
+                                attachment['content']
+                            )
 
-        except Exception as e:
-            print(f"SendGrid error: {e}")
-            if hasattr(e, 'message'):
-                print(f"Error message: {e.message}")
+                    conn.send(msg)
+                    current_app.logger.info(f"Email sent (subject: {subject!r}, to: {recipient})")
+                except Exception:
+                    all_sent = False
+                    current_app.logger.exception(f"EMAIL SEND FAILED (subject: {subject!r}, to: {recipient})")
+    except Exception:
+        # Connection or login to the SMTP server failed, so nothing was sent
+        current_app.logger.exception(f"EMAIL SEND FAILED - could not connect to {config['MAIL_SERVER']}:{config['MAIL_PORT']} (subject: {subject!r}, to: {to})")
+        return False
+
+    return all_sent
 
             
 # Determines if file submitted is allowed
