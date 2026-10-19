@@ -236,10 +236,14 @@
     
     .social-buttons {
         margin-top: 2rem;
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 1rem 2rem;  /* row gap applies when the buttons stack on phones */
     }
     
     .btn-social {
-        margin: 0 1rem;
+        margin: 0;
         padding: 1rem 2rem;
         border-radius: 50px;
         font-weight: 600;

@@ -597,6 +597,56 @@
             grid-template-columns: 1fr;
         }
     }
+
+    /* Phones: keep the header compact so the pantry table is visible without much scrolling */
+    @media (max-width: 576px) {
+        .dashboard-hero {
+            padding: 36px 0 28px 0;
+            margin-bottom: 24px;
+        }
+
+        .hero-title {
+            font-size: 1.9rem;
+            margin-bottom: 10px;
+        }
+
+        .hero-subtitle {
+            font-size: 0.95rem;
+        }
+
+        .stats-hero-grid {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .hero-stat-card {
+            padding: 14px 6px;
+            border-radius: 16px;
+        }
+
+        .hero-stat-card:hover {
+            transform: none;
+        }
+
+        .hero-stat-icon {
+            width: 36px;
+            height: 36px;
+            font-size: 16px;
+            border-radius: 10px;
+            margin-bottom: 8px;
+        }
+
+        .hero-stat-value {
+            font-size: 1.5rem;
+            margin-bottom: 4px;
+        }
+
+        .hero-stat-label {
+            font-size: 0.62rem;
+            letter-spacing: 0.3px;
+        }
+    }
 </style>
 {% endblock %}
 
