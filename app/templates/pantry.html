@@ -2,718 +2,456 @@
 
 {% block title %} {{ pantry.name }} - Report That Pantry {% endblock %}
 
+{% block style %}
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+<style>
+    :root {
+        --pg-bg: #F7F3EA;
+        --pg-surface: #FFFFFF;
+        --pg-sunken: #EFE9DC;
+        --pg-text: #221D16;
+        --pg-text-secondary: #6B6255;
+        --pg-text-muted: #948C7C;
+        --pg-border: rgba(34,29,22,0.12);
+        --pg-accent: #B8752E;
+        --pg-accent-dark: #8A5420;
+        --pg-accent-bg: #F1E1C6;
+        --pg-accent-ink: #6B4118;
+        --pg-secondary: #3F6E64;
+        --pg-secondary-bg: #DCE8E4;
+        --pg-good: #4F7942;
+        --pg-good-bg: #E4EEDD;
+        --pg-warn-bg: #F6E7CE;
+        --pg-warn-ink: #7A4E12;
+        --pg-critical: #B8483C;
+        --pg-critical-bg: #F5DEDA;
+        --pg-critical-ink: #7A2E24;
+    }
+
+    .content-area { margin-top: 0 !important; padding-top: 0 !important; }
+    body { background: var(--pg-bg) !important; font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
+
+    .pg-hero {
+        background: linear-gradient(135deg, #8A5420 0%, #B8752E 55%, #3F6E64 100%) !important;
+        color: white !important;
+        padding: 60px 0 40px 0;
+        margin: 0 0 34px 0;
+        width: 100vw;
+        margin-left: calc(-50vw + 50%);
+    }
+    .pg-hero-content { max-width: 1000px; margin: 0 auto; padding: 0 20px; }
+    .pg-eyebrow { text-transform: uppercase; letter-spacing: 2px; font-size: 0.8rem; font-weight: 700; opacity: 0.85; margin-bottom: 8px; }
+    .pg-title { font-family: Georgia, serif; font-size: 2.4rem; font-weight: 700; margin-bottom: 6px; }
+    .pg-address { font-size: 1rem; opacity: 0.9; margin-bottom: 22px; }
+
+    .pg-status-row { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; margin-bottom: 22px; }
+    .pg-status-pill { display: inline-flex; align-items: center; gap: 8px; padding: 8px 18px; border-radius: 30px; font-weight: 700; font-size: 1.05rem; }
+    .pg-status-pill.full { background: rgba(79,121,66,0.25); color: #DCEECB; }
+    .pg-status-pill.half { background: rgba(184,117,46,0.3); color: #FBE6C4; }
+    .pg-status-pill.empty { background: rgba(184,72,60,0.3); color: #F6D2CC; }
+    .pg-status-pill.unknown { background: rgba(255,255,255,0.2); color: #fff; }
+    .pg-updated { font-size: 0.88rem; opacity: 0.85; }
+
+    .pg-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+    .pg-btn {
+        display: inline-flex; align-items: center; gap: 7px; padding: 10px 18px; border-radius: 10px;
+        font-weight: 600; font-size: 0.9rem; text-decoration: none; border: 1px solid rgba(255,255,255,0.4);
+        color: white; background: rgba(255,255,255,0.12); transition: background 0.2s ease;
+    }
+    .pg-btn:hover { background: rgba(255,255,255,0.24); color: white; }
+    .pg-btn.primary { background: white; color: var(--pg-accent-dark); border-color: white; }
+    .pg-btn.primary:hover { background: #F6EEDF; color: var(--pg-accent-dark); }
+
+    .container-pg { max-width: 1000px; margin: 0 auto; padding: 0 20px; }
+
+    .pg-kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; margin-bottom: 34px; }
+    .pg-kpi { background: var(--pg-surface); border: 1px solid var(--pg-border); border-radius: 14px; padding: 18px 16px; text-align: center; }
+    .pg-kpi-value { font-family: Georgia, serif; font-size: 1.8rem; font-weight: 700; color: var(--pg-text); line-height: 1; margin-bottom: 4px; }
+    .pg-kpi-label { font-size: 0.78rem; color: var(--pg-text-muted); text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }
+
+    .pg-section { margin-bottom: 34px; }
+    .pg-section h2 { font-family: Georgia, serif; font-weight: 700; font-size: 1.35rem; color: var(--pg-text); margin-bottom: 2px; }
+    .pg-section-note { color: var(--pg-text-secondary); font-size: 0.9rem; margin-bottom: 16px; max-width: 70ch; }
+    .pg-card { background: var(--pg-surface); border: 1px solid var(--pg-border); border-radius: 16px; padding: 24px 26px; }
+    .pg-chart-box { position: relative; width: 100%; }
+    .pg-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+    @media (max-width: 700px) { .pg-grid-2 { grid-template-columns: 1fr; } }
+
+    .pg-callout { background: var(--pg-sunken); border-radius: 12px; padding: 16px 20px; margin-top: 16px; font-size: 0.9rem; color: var(--pg-text-secondary); }
+    .pg-callout strong { color: var(--pg-text); }
+    .pg-stat-line { display: flex; justify-content: space-between; border-top: 1px solid var(--pg-border); padding: 9px 0; font-size: 0.92rem; }
+    .pg-stat-line:first-child { border-top: none; }
+    .pg-stat-line .num { font-weight: 600; color: var(--pg-text); }
+
+    .pg-food-tag { display: inline-block; background: var(--pg-secondary-bg); color: var(--pg-secondary); border-radius: 20px; padding: 4px 12px; margin: 3px 4px 0 0; font-size: 0.8rem; font-weight: 600; }
+
+    .pg-log-row { display: flex; gap: 14px; padding: 14px 0; border-top: 1px solid var(--pg-border); align-items: flex-start; }
+    .pg-log-row:first-child { border-top: none; }
+    .pg-log-thumb { width: 56px; height: 44px; object-fit: cover; border-radius: 8px; flex-shrink: 0; cursor: pointer; }
+    .pg-log-badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 0.78rem; font-weight: 700; }
+    .pg-log-badge.full { background: var(--pg-good-bg); color: var(--pg-good); }
+    .pg-log-badge.half { background: var(--pg-warn-bg); color: var(--pg-warn-ink); }
+    .pg-log-badge.empty { background: var(--pg-critical-bg); color: var(--pg-critical-ink); }
+    .pg-log-time { font-size: 0.82rem; color: var(--pg-text-muted); }
+    .pg-log-desc { font-size: 0.85rem; color: var(--pg-text-secondary); margin-top: 4px; }
+    .pg-log-ai { font-size: 0.78rem; color: var(--pg-secondary); margin-top: 4px; }
+
+    .pg-pagination { display: flex; justify-content: space-between; align-items: center; margin-top: 18px; font-size: 0.88rem; color: var(--pg-text-secondary); }
+    .pg-pagination a { color: var(--pg-accent-dark); font-weight: 600; text-decoration: none; }
+    .pg-pagination a.disabled { color: var(--pg-text-muted); pointer-events: none; }
+
+    .pg-subscribe-card { background: var(--pg-sunken); border-radius: 16px; padding: 24px 26px; }
+    .pg-subscribe-card input[type=email] { border-radius: 10px; }
+
+    @media (max-width: 768px) {
+        .pg-title { font-size: 1.8rem; }
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="container mt-5">
-    <div class="row">
-        <div class="col-md-8">
-            <div class="card mb-4">
-                {% if pantry.photo %}
-                <img src="{{ current_app.config['S3_LOCATION'] + pantry.photo }}" 
-                    class="card-img-top" alt="Pantry Photo" 
-                    style="max-height: 400px; object-fit: cover; width: 100%;">
-                {% endif %}
-                <div class="card-body">
-                    <h2 class="card-title">{{ pantry.name }}</h2>
-                    <p class="card-text">{{ pantry.address }} {{ pantry.city }}, {{ pantry.state }}, {{ pantry.zip }}</p>
-                    
-                    <div class="status-section mt-3">
-                        <h3>Current Status</h3>
-                        <div class="progress" style="height: 20px; position: relative;"> 
-                            <div class="progress-bar 
-                                {% if latest_report.pantry_fullness <= 33 %}
-                                    bg-danger
-                                {% elif latest_report.pantry_fullness <= 67 %}
-                                    bg-warning
-                                {% else %}
-                                    bg-success
-                                {% endif %}" 
-                                role="progressbar" 
-                                style="width: {% if latest_report.pantry_fullness < 10 %}10{% else %}{{ latest_report.pantry_fullness }}{% endif %}%;"
-                                aria-valuenow="{{ latest_report.pantry_fullness }}" 
-                                aria-valuemin="0" 
-                                aria-valuemax="100">
-                                {{ latest_report.pantry_fullness }}% Full
-                            </div>
-                        </div>
-                        <p class="report-time" data-utc-time="{{ latest_report.time.isoformat() }}">Last Updated: {{ latest_report.time.strftime('%Y-%m-%d %H:%M') if latest_report.time else 'N/A' }}</p> 
-                        <form action="/location/subscribe/{{pantry.id}}" class="d-flex" method="POST" style="margin: 0px;"> 
-                            <a href="{{ url_for('views.report', id=pantry.id) }}" class="btn btn-primary mr-2">Report Status</a> 
-                            <!-- {% if user and user.is_authenticated %}
-                            <button id="subscribe-button" class="btn btn-{{ 'danger' if pantry.id in subscribed_locations else 'success' }}"> 
-                                {% if pantry.id in subscribed_locations %}
-                                    Unsubscribe
-                                {% else %}
-                                    Subscribe
-                                {% endif %}
-                            </button>
-                        {% else %}
-                        <a href="/login" class="btn btn-success">Log In to Subscribe</a>
-                        {% endif %} -->
-                        </form>
 
-                    </div>
+<div class="pg-hero">
+    <div class="pg-hero-content">
+        <div class="pg-eyebrow">{{ pantry.city }}{% if pantry.state %}, {{ pantry.state }}{% endif %}</div>
+        <h1 class="pg-title">{{ pantry.name }}</h1>
+        <p class="pg-address"><i class="fas fa-location-dot"></i> {{ pantry.address }}{% if pantry.city %}, {{ pantry.city }}{% endif %}{% if pantry.state %}, {{ pantry.state }}{% endif %}{% if pantry.zip %} {{ pantry.zip }}{% endif %}</p>
 
-                    <!-- Analytics Section -->
-                    {% if analytics %}
-                    <div class="analytics-section mt-4">
-                        <div class="d-flex justify-content-between align-items-center mb-3">
-                            <h3><i class="fas fa-chart-line"></i> Analytics & Trends</h3>
-                            {% if can_edit %}
-                                <a href="/api/analytics/{{ pantry.id }}" target="_blank" class="btn btn-sm btn-outline-secondary">
-                                    <i class="fas fa-download"></i> Export Data
-                                </a>
-                            {% endif %}
-                        </div>
-                        
-                        <!-- Quick Stats Cards -->
-                        <div class="row mb-4">
-                            <div class="col-md-3 col-sm-6 mb-2">
-                                <div class="card bg-primary text-white">
-                                    <div class="card-body text-center p-3">
-                                        <h5 class="card-title mb-1">{{ analytics.total_reports }}</h5>
-                                        <p class="card-text small mb-0">Total Reports</p>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-3 col-sm-6 mb-2">
-                                <div class="card bg-info text-white">
-                                    <div class="card-body text-center p-3">
-                                        <h5 class="card-title mb-1">{{ analytics.fullness_stats.average }}%</h5>
-                                        <p class="card-text small mb-0">Average Fullness</p>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-3 col-sm-6 mb-2">
-                                <div class="card 
-                                    {% if analytics.trends.direction == 'improving' %}
-                                        bg-success
-                                    {% elif analytics.trends.direction == 'declining' %}
-                                        bg-warning
-                                    {% else %}
-                                        bg-secondary
-                                    {% endif %} text-white">
-                                    <div class="card-body text-center p-3">
-                                        <h5 class="card-title mb-1">
-                                            {% if analytics.trends.direction == 'improving' %}
-                                                <i class="fas fa-arrow-up"></i>
-                                            {% elif analytics.trends.direction == 'declining' %}
-                                                <i class="fas fa-arrow-down"></i>
-                                            {% else %}
-                                                <i class="fas fa-minus"></i>
-                                            {% endif %}
-                                        </h5>
-                                        <p class="card-text small mb-0">{{ analytics.trends.direction|title }} Trend</p>
-                                    </div>
-                                </div>
-                            </div>
-
-                        </div>
-
-                        <!-- Fullness Trend Chart -->
-                        <div class="card mb-4">
-                            <div class="card-header">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <h5 class="mb-0"><i class="fas fa-chart-area"></i> Fullness Over Time</h5>
-                                    <small class="text-muted">
-                                        <span class="badge" style="background-color: #dc3545; color: #dc3545;">●</span> Empty/Low (≤33%)
-                                        <span class="badge ml-1" style="background-color: #ffc107; color: #ffc107;">●</span> Half Full (34-67%)
-                                        <span class="badge ml-1" style="background-color: #28a745; color: #28a745;">●</span> Full (≥68%)
-                                    </small>
-                                </div>
-                            </div>
-                            <div class="card-body">
-                                <canvas id="fullnessChart" width="400" height="200"></canvas>
-                            </div>
-                        </div>
-
-                        <!-- Time Period Trends Chart - TEMPORARILY DISABLED -->
-                        <!-- {% if analytics.time_trends.has_weekly_data or analytics.time_trends.has_monthly_data or analytics.time_trends.has_yearly_data %}
-                        <div class="card mb-4">
-                            <div class="card-header">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <h5 class="mb-0"><i class="fas fa-calendar-alt"></i> Period Trends</h5>
-                                    <div class="btn-group btn-group-sm" role="group" id="trend-buttons">
-                                        {% if analytics.time_trends.has_weekly_data %}
-                                            <button type="button" class="btn btn-outline-primary active trend-btn" data-period="weekly">Weekly</button>
-                                        {% endif %}
-                                        {% if analytics.time_trends.has_monthly_data %}
-                                            <button type="button" class="btn btn-outline-primary{% if not analytics.time_trends.has_weekly_data %} active{% endif %} trend-btn" data-period="monthly">Monthly</button>
-                                        {% endif %}
-                                        {% if analytics.time_trends.has_yearly_data %}
-                                            <button type="button" class="btn btn-outline-primary{% if not analytics.time_trends.has_weekly_data and not analytics.time_trends.has_monthly_data %} active{% endif %} trend-btn" data-period="yearly">Yearly</button>
-                                        {% endif %}
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="card-body">
-                                <canvas id="trendsChart" width="400" height="200"></canvas>
-                                <div class="mt-3">
-                                    <small class="text-muted">
-                                        <i class="fas fa-info-circle"></i> 
-                                        Shows average fullness per period with error bars indicating min/max values
-                                    </small>
-                                </div>
-                            </div>
-                        </div>
-                        {% endif %} -->
-
-                        <!-- Usage Patterns -->
-                        <div class="row mb-4">
-                            <div class="col-md-6">
-                                <div class="card">
-                                    <div class="card-header">
-                                        <h6 class="mb-0"><i class="fas fa-calendar-week"></i> Activity Patterns</h6>
-                                    </div>
-                                    <div class="card-body">
-                                        <p class="mb-2"><strong>Most Active Day:</strong> {{ analytics.patterns.most_active_day or 'N/A' }}</p>
-                                        <p class="mb-2"><strong>Least Active Day:</strong> {{ analytics.patterns.least_active_day or 'N/A' }}</p>
-                                        <p class="mb-2"><strong>Critical Periods:</strong> {{ analytics.patterns.critical_periods }} reports ≤10% full</p>
-                                        {% if analytics.patterns.peak_depletion_hours %}
-                                            <p class="mb-0"><strong>Peak Usage Hours:</strong> 
-                                                {% for hour in analytics.patterns.peak_depletion_hours[:2] %}
-                                                    {{ hour }}{% if not loop.last %}, {% endif %}
-                                                {% endfor %}
-                                            </p>
-                                        {% endif %}
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="card">
-                                    <div class="card-header">
-                                        <h6 class="mb-0"><i class="fas fa-chart-pie"></i> Fullness Distribution</h6>
-                                    </div>
-                                    <div class="card-body">
-                                        <canvas id="distributionChart" width="300" height="200"></canvas>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-
-
-                        <!-- AI Insights -->
-                        {% if analytics.ai_insights and analytics.ai_insights.total_ai_reports > 0 %}
-                        <div class="card mb-4">
-                            <div class="card-header">
-                                <h6 class="mb-0"><i class="fas fa-robot"></i> AI Analysis Insights</h6>
-                            </div>
-                            <div class="card-body">
-                                <div class="row">
-                                    <div class="col-md-6">
-                                        <p class="mb-2"><strong>AI Reports:</strong> {{ analytics.ai_insights.total_ai_reports }} of {{ analytics.total_reports }} ({{ analytics.ai_insights.ai_coverage_percentage }}%)</p>
-                                        {% if analytics.ai_insights.average_ai_fullness %}
-                                            <p class="mb-2"><strong>Average AI Fullness:</strong> {{ analytics.ai_insights.average_ai_fullness }}%</p>
-                                        {% endif %}
-                                        {% if analytics.ai_insights.average_organization %}
-                                            <p class="mb-0"><strong>Average Organization Score:</strong> {{ analytics.ai_insights.average_organization }}/100</p>
-                                        {% endif %}
-                                    </div>
-                                    <div class="col-md-6">
-                                        {% if analytics.ai_insights.most_common_items %}
-                                            <p class="mb-2"><strong>Most Common Items:</strong></p>
-                                            <ul class="mb-0 small">
-                                                {% for item, count in analytics.ai_insights.most_common_items %}
-                                                    <li>{{ item }} ({{ count }} times)</li>
-                                                {% endfor %}
-                                            </ul>
-                                        {% endif %}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        {% endif %}
-
-                        <!-- Detailed Stats -->
-                        <div class="card">
-                            <div class="card-header">
-                                <h6 class="mb-0"><i class="fas fa-info-circle"></i> Detailed Statistics</h6>
-                            </div>
-                            <div class="card-body">
-                                <div class="row">
-                                    <div class="col-md-6">
-                                        <p class="mb-1"><strong>Data Range:</strong> {{ analytics.date_range.start.strftime('%Y-%m-%d') }} to {{ analytics.date_range.end.strftime('%Y-%m-%d') }}</p>
-                                        <p class="mb-1"><strong>Tracking Period:</strong> {{ analytics.date_range.days }} days</p>
-                                        <p class="mb-1"><strong>Minimum Fullness:</strong> {{ analytics.fullness_stats.minimum }}%</p>
-                                        <p class="mb-0"><strong>Maximum Fullness:</strong> {{ analytics.fullness_stats.maximum }}%</p>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <p class="mb-1"><strong>Recent Trend:</strong> {{ analytics.trends.recent_average }}% average (last 5 reports)</p>
-                                        <p class="mb-1"><strong>Change from Previous:</strong> 
-                                            {% if analytics.trends.change_from_previous > 0 %}
-                                                <span class="text-success">+{{ analytics.trends.change_from_previous }}%</span>
-                                            {% elif analytics.trends.change_from_previous < 0 %}
-                                                <span class="text-danger">{{ analytics.trends.change_from_previous }}%</span>
-                                            {% else %}
-                                                <span class="text-muted">No change</span>
-                                            {% endif %}
-                                        </p>
-                                        <p class="mb-0"><strong>Reports per Week:</strong> {{ "%.1f"|format(analytics.total_reports / (analytics.date_range.days / 7)) }}</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    {% else %}
-                    <div class="analytics-section mt-4">
-                        <h3><i class="fas fa-chart-line text-muted"></i> Analytics & Trends</h3>
-                        <div class="alert alert-info">
-                            <i class="fas fa-info-circle"></i> 
-                            Analytics will be available after at least 2 reports have been submitted for this pantry.
-                        </div>
-                    </div>
-                    {% endif %}
-
-                    <div class="details-section mt-4">
-                        <h3>Details</h3>
-                        {% if pantry.description %}
-                            <p>Description: {{ pantry.description }}</p>
-                        {% endif %}
-                        {% if pantry.contact_info %}
-                            <p>Contact Info: {{ pantry.contact_info }}</p>
-                        {% endif %}
-                    </div>
-                    
-                    <div class="reporting-history mt-4">
-                        <h3>Reporting History</h3>
-                        {% if pantry.reports|length > 0 %}
-                            <ul class="list-group">
-                                {% for report in pantry.reports %}
-                                    <li class="list-group-item">
-                                        <div class="d-flex justify-content-between align-items-start">
-                                            <div class="flex-grow-1">
-                                                <span class="report-time fw-bold" data-utc-time="{{ report.time.isoformat() }}">
-                                                    {{ report.time.strftime('%Y-%m-%d %H:%M') }}
-                                                </span>
-                                                <span class="ms-2">
-                                                    <span class="badge 
-                                                        {% if report.pantry_fullness <= 33 %}
-                                                            bg-danger
-                                                        {% elif report.pantry_fullness <= 67 %}
-                                                            bg-warning
-                                                        {% else %}
-                                                            bg-success
-                                                        {% endif %}">
-                                                        {{ report.pantry_fullness }}% Full
-                                                    </span>
-                                                </span>
-                                                
-                                                {% if report.description %}
-                                                    <p class="mt-2 mb-1 text-muted small">{{ report.description }}</p>
-                                                {% endif %}
-                                                
-                                                <!-- Vision API Analysis Results -->
-                                                {% set vision_analysis = report.get_vision_analysis() %}
-                                                {% if vision_analysis and vision_analysis.get('food_items') %}
-                                                    <div class="mt-2">
-                                                        <small class="text-info">
-                                                            <i class="fas fa-robot"></i> AI Analysis:
-                                                        </small>
-                                                        <div class="mt-1">
-                                                            <small>
-                                                                <strong>Detected items:</strong> 
-                                                                {% for item in report.get_detected_food_items() %}
-                                                                    <span class="badge bg-light text-dark me-1">{{ item }}</span>
-                                                                {% endfor %}
-                                                            </small>
-                                                        </div>
-                                                        {% set ai_fullness = report.get_ai_fullness_estimate() %}
-                                                        {% if ai_fullness is not none %}
-                                                            <div class="mt-1">
-                                                                <small>
-                                                                    <strong>AI fullness estimate:</strong> {{ ai_fullness }}%
-                                                                    {% set fullness_diff = (report.pantry_fullness - ai_fullness)|abs %}
-                                                                    {% if fullness_diff > 20 %}
-                                                                        <span class="text-warning">(differs from user report by {{ fullness_diff }}%)</span>
-                                                                    {% endif %}
-                                                                </small>
-                                                            </div>
-                                                        {% endif %}
-                                                        {% set org_score = report.get_organization_score() %}
-                                                        {% if org_score is not none and org_score > 0 %}
-                                                            <div class="mt-1">
-                                                                <small>
-                                                                    <strong>Organization score:</strong> {{ "%.0f"|format(org_score) }}/100
-                                                                </small>
-                                                            </div>
-                                                        {% endif %}
-                                                    </div>
-                                                {% endif %}
-                                            </div>
-                                            
-                                            {% if report.photo %} 
-                                                <div class="ms-3"> 
-                                                    <a href="{{ current_app.config['S3_LOCATION'] + report.photo }}" data-toggle="modal" data-target="#photoModal">
-                                                        <img src="{{ current_app.config['S3_LOCATION'] + report.photo }}" class="img-thumbnail" style="width: 80px; height: 60px; object-fit: cover;" alt="Report Photo">
-                                                    </a>
-                                                </div>
-                                            {% endif %}
-                                        </div>
-                                    </li>
-                                {% endfor %}
-                            </ul>
-                        {% else %}
-                            <p>No reports available.</p>
-                        {% endif %}
-                    </div>
-
-                </div>
-            </div>
+        <div class="pg-status-row">
+            {% if latest_report %}
+                {% set fullness = latest_report.pantry_fullness %}
+                <span class="pg-status-pill {{ 'empty' if fullness <= 33 else ('half' if fullness <= 67 else 'full') }}">
+                    <i class="fas fa-basket-shopping"></i>
+                    {{ fullness }}% &mdash; {{ 'Empty' if fullness <= 33 else ('Half Full' if fullness <= 67 else 'Full') }}
+                </span>
+                <span class="pg-updated report-time" data-utc-time="{{ latest_report.time.isoformat() }}">Last updated {{ latest_report.time.strftime('%Y-%m-%d %H:%M') }}</span>
+            {% else %}
+                <span class="pg-status-pill unknown"><i class="fas fa-circle-question"></i> No reports yet</span>
+            {% endif %}
         </div>
 
-        <div class="col-md-4">
-            <div class="card mb-3">
-                <div class="card-header">
-                    <h3>Actions</h3>
-                </div>
-                <div class="card-body">
-                    <a href="https://www.google.com/maps/search/?api=1&query={{ pantry.latitude }},{{ pantry.longitude }}&zoom=16" target="_blank" class="btn btn-secondary btn-block mb-2">View on Google Maps</a>
-                    
-                    <!-- Facebook Share Button -->
-                    <button onclick="shareOnFacebook()" class="btn btn-primary btn-block mb-2">
-                        <i class="fab fa-facebook-f"></i> Share on Facebook
-                    </button>
-                    
-                    {% if user and user.is_authenticated and user.id == pantry.user_id %}
-                        <a href="{{ url_for('views.edit_location', location_id=pantry.id) }}" class="btn btn-info btn-block mb-2">Edit Location</a>
-                        <a href="{{ url_for('views.poster', id=pantry.id, isNew1=1) }}" class="btn btn-success btn-block">Get QR Code</a> 
-                    {% endif %}
-                </div>
-            </div>
-            
-            <!-- Email Subscription Card -->
-            <div class="card">
-                <div class="card-header">
-                    <h4><i class="fas fa-envelope"></i> Get Notifications</h4>
-                </div>
-                <div class="card-body">
-                    <p class="small text-muted mb-3">Receive email alerts when this pantry is running low on supplies.</p>
-                    <form id="subscriptionForm" onsubmit="handleSubscription(event)">
-                        <div class="form-group mb-3">
-                            <input type="email" class="form-control" id="subscriptionEmail" placeholder="Enter your email address" required>
-                        </div>
-                        <button type="submit" class="btn btn-primary btn-block">
-                            <i class="fas fa-bell"></i> Subscribe to Updates
-                        </button>
-                    </form>
-                    <div id="subscriptionMessage" class="mt-2" style="display: none;"></div>
-                </div>
-            </div>
-        </div>
-    </div>
-    <div class="modal fade" id="photoModal" tabindex="-1" role="dialog" aria-labelledby="photoModalLabel" aria-hidden="true">
-        <div class="modal-dialog" role="document">
-          <div class="modal-content">
-            <div class="modal-header">
-              <h5 class="modal-title" id="photoModalLabel">Report Photo</h5>
-              <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                <span aria-hidden="true">&times;</span>
-            </button>
-            </div>
-            <div class="modal-body mx-auto">
-              <img id="modal-image"
-       src="" class="img-fluid" alt="Report Photo">
-            </div>
-          </div>
+        <div class="pg-actions">
+            <a href="{{ url_for('views.report', id=pantry.id) }}" class="pg-btn primary"><i class="fas fa-clipboard-check"></i> Report status</a>
+            <a href="https://www.google.com/maps/search/?api=1&query={{ pantry.latitude }},{{ pantry.longitude }}&zoom=16" target="_blank" class="pg-btn"><i class="fas fa-diamond-turn-right"></i> Directions</a>
+            <button onclick="shareOnFacebook()" class="pg-btn"><i class="fab fa-facebook-f"></i> Share</button>
+            {% if can_edit %}
+                <a href="{{ url_for('views.edit_location', location_id=pantry.id) }}" class="pg-btn"><i class="fas fa-pen"></i> Edit</a>
+                <a href="{{ url_for('views.poster', id=pantry.id, isNew1=1) }}" class="pg-btn"><i class="fas fa-qrcode"></i> QR code</a>
+            {% endif %}
         </div>
     </div>
 </div>
 
-  {% endblock %}
+<div class="container-pg">
 
+{% if analytics %}
+<div class="pg-kpi-row">
+    <div class="pg-kpi"><div class="pg-kpi-value">{{ analytics.total_reports }}</div><div class="pg-kpi-label">Total reports</div></div>
+    <div class="pg-kpi"><div class="pg-kpi-value">{{ analytics.fullness_stats.current }}%</div><div class="pg-kpi-label">Current fullness</div></div>
+    <div class="pg-kpi"><div class="pg-kpi-value">{{ analytics.fullness_stats.average }}%</div><div class="pg-kpi-label">Average fullness</div></div>
+    <div class="pg-kpi"><div class="pg-kpi-value">{{ "%.1f"|format(analytics.total_reports / (analytics.date_range.days / 7)) }}</div><div class="pg-kpi-label">Reports / week</div></div>
+</div>
 
-  {% block script %}
-<!-- Chart.js for analytics charts -->
+<div class="pg-section">
+    <h2>Fullness over time</h2>
+    <p class="pg-section-note">Every check-in for this pantry, from {{ analytics.date_range.start.strftime('%b %Y') }} to {{ analytics.date_range.end.strftime('%b %Y') }}.</p>
+    <div class="pg-card">
+        <div class="pg-chart-box" style="height:260px;"><canvas id="chartFullnessTime" role="img" aria-label="Line chart of this pantry's reported fullness over time."></canvas></div>
+    </div>
+</div>
+
+<div class="pg-section">
+    <h2>When this pantry gets checked</h2>
+    <p class="pg-section-note">
+        {% if analytics.patterns.most_active_day %}Most check-ins happen on <strong>{{ analytics.patterns.most_active_day }}</strong>.{% endif %}
+    </p>
+    <div class="pg-card">
+        <div class="pg-grid-2">
+            <div>
+                <div style="font-size:0.82rem;color:var(--pg-text-secondary);margin-bottom:8px;">By day of week</div>
+                <div class="pg-chart-box" style="height:200px;"><canvas id="chartDow" role="img" aria-label="Bar chart of check-ins by day of week for this pantry."></canvas></div>
+            </div>
+            <div>
+                <div style="font-size:0.82rem;color:var(--pg-text-secondary);margin-bottom:8px;">By hour of day</div>
+                <div class="pg-chart-box" style="height:200px;"><canvas id="chartHour" role="img" aria-label="Bar chart of check-ins by hour of day for this pantry."></canvas></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="pg-section">
+    <h2>Stock level distribution</h2>
+    <div class="pg-card">
+        <div class="pg-chart-box" style="height:220px;"><canvas id="chartBuckets" role="img" aria-label="Bar chart of reported fullness for this pantry, grouped into six ranges."></canvas></div>
+    </div>
+</div>
+
+{% if analytics.restocking and analytics.restocking.total_restocking_events > 0 %}
+<div class="pg-section">
+    <h2>Restocking patterns</h2>
+    <div class="pg-card">
+        <div class="pg-stat-line"><span>Times restocked (jump of 30%+)</span><span class="num">{{ analytics.restocking.total_restocking_events }}</span></div>
+        {% if analytics.restocking.average_restock_time_hours %}
+        <div class="pg-stat-line"><span>Typical time between restocks</span><span class="num">{{ "%.0f"|format(analytics.restocking.average_restock_time_hours) }} hours</span></div>
+        {% endif %}
+        {% if analytics.restocking.average_depletion_time_hours %}
+        <div class="pg-stat-line"><span>Typical time to run low after a restock</span><span class="num">{{ "%.0f"|format(analytics.restocking.average_depletion_time_hours) }} hours</span></div>
+        {% endif %}
+        <div class="pg-stat-line"><span>Restocking events per week</span><span class="num">{{ analytics.restocking.restocking_frequency_per_week }}</span></div>
+    </div>
+</div>
+{% endif %}
+
+{% if analytics.ai_insights and analytics.ai_insights.total_ai_reports > 0 %}
+<div class="pg-section">
+    <h2>AI photo analysis</h2>
+    <p class="pg-section-note">{{ analytics.ai_insights.total_ai_reports }} of {{ analytics.total_reports }} reports ({{ analytics.ai_insights.ai_coverage_percentage }}%) included a photo the vision model analyzed.</p>
+    <div class="pg-card">
+        <div class="pg-grid-2">
+            <div>
+                {% if analytics.ai_insights.average_ai_fullness is not none %}
+                <div class="pg-stat-line"><span>AI-estimated average fullness</span><span class="num">{{ analytics.ai_insights.average_ai_fullness }}%</span></div>
+                {% endif %}
+                <div class="pg-stat-line"><span>Self-reported average fullness</span><span class="num">{{ analytics.fullness_stats.average }}%</span></div>
+            </div>
+            <div>
+                {% if analytics.ai_insights.most_common_items %}
+                <div style="font-size:0.82rem;color:var(--pg-text-secondary);margin-bottom:6px;">Most commonly spotted items</div>
+                {% for item, count in analytics.ai_insights.most_common_items %}
+                    <span class="pg-food-tag">{{ item }} &times;{{ count }}</span>
+                {% endfor %}
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% else %}
+<div class="pg-section">
+    <div class="pg-card" style="text-align:center; padding:40px 20px;">
+        <i class="fas fa-chart-line" style="font-size:2rem; color:var(--pg-text-muted); margin-bottom:12px;"></i>
+        <h4>Not enough data yet</h4>
+        <p class="text-muted mb-0">Trends appear once this pantry has at least 2 reports.</p>
+    </div>
+</div>
+{% endif %}
+
+{% if pantry.description or pantry.contact_info %}
+<div class="pg-section">
+    <h2>Details</h2>
+    <div class="pg-card">
+        {% if pantry.description %}<div class="pg-stat-line" style="border-top:none;"><span>Description</span><span class="num" style="text-align:right; max-width:60%;">{{ pantry.description }}</span></div>{% endif %}
+        {% if pantry.contact_info %}<div class="pg-stat-line"><span>Contact</span><span class="num">{{ pantry.contact_info }}</span></div>{% endif %}
+    </div>
+</div>
+{% endif %}
+
+<div class="pg-section">
+    <h2>Report log</h2>
+    <p class="pg-section-note">{{ log_pagination.total }} report{{ 's' if log_pagination.total != 1 else '' }} total, newest first.</p>
+    <div class="pg-card">
+        {% if log_pagination.items %}
+            {% for report in log_pagination.items %}
+            <div class="pg-log-row">
+                {% if report.photo %}
+                <a href="{{ current_app.config['S3_LOCATION'] + report.photo }}" data-toggle="modal" data-target="#photoModal">
+                    <img src="{{ current_app.config['S3_LOCATION'] + report.photo }}" class="pg-log-thumb" alt="Report photo">
+                </a>
+                {% endif %}
+                <div style="flex:1;">
+                    <span class="pg-log-badge {{ 'empty' if report.pantry_fullness <= 33 else ('half' if report.pantry_fullness <= 67 else 'full') }}">{{ report.pantry_fullness }}%</span>
+                    <span class="pg-log-time ms-2">{{ report.time.strftime('%Y-%m-%d %H:%M') }} &middot; {{ 'Registered user' if report.user_id else 'Anonymous' }}</span>
+                    {% if report.description %}<div class="pg-log-desc">{{ report.description }}</div>{% endif %}
+                    {% set vision = report.get_vision_analysis() %}
+                    {% if vision and vision.get('food_items') %}
+                        <div class="pg-log-ai"><i class="fas fa-robot"></i> Spotted: {{ report.get_detected_food_items()|join(', ') }}</div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+            <div class="pg-pagination">
+                {% if log_pagination.has_prev %}
+                    <a href="?page={{ log_pagination.prev_num }}"><i class="fas fa-arrow-left"></i> Newer</a>
+                {% else %}
+                    <span class="disabled">&nbsp;</span>
+                {% endif %}
+                <span>Page {{ log_pagination.page }} of {{ log_pagination.pages }}</span>
+                {% if log_pagination.has_next %}
+                    <a href="?page={{ log_pagination.next_num }}">Older <i class="fas fa-arrow-right"></i></a>
+                {% else %}
+                    <span class="disabled">&nbsp;</span>
+                {% endif %}
+            </div>
+        {% else %}
+            <p class="text-muted mb-0">No reports yet &mdash; be the first to check this pantry.</p>
+        {% endif %}
+    </div>
+</div>
+
+<div class="pg-section">
+    <div class="pg-subscribe-card">
+        <h2 style="margin-bottom:6px;"><i class="fas fa-envelope"></i> Get notified</h2>
+        <p class="pg-section-note" style="margin-bottom:14px;">Get an email alert when this pantry is reported running low.</p>
+        <form id="subscriptionForm" onsubmit="handleSubscription(event)" class="d-flex" style="gap:10px; flex-wrap:wrap;">
+            <input type="email" class="form-control" id="subscriptionEmail" placeholder="Enter your email address" required style="max-width:320px;">
+            <button type="submit" class="btn btn-primary"><i class="fas fa-bell"></i> Subscribe</button>
+        </form>
+        <div id="subscriptionMessage" class="mt-2" style="display: none;"></div>
+    </div>
+</div>
+
+</div>
+
+<div class="modal fade" id="photoModal" tabindex="-1" role="dialog" aria-labelledby="photoModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="photoModalLabel">Report Photo</h5>
+          <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+        </button>
+        </div>
+        <div class="modal-body mx-auto">
+          <img id="modal-image" src="" class="img-fluid" alt="Report Photo">
+        </div>
+      </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block script %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-<!-- Data Generation Script -->
 {% if analytics %}
 <script>
-window.pantryAnalyticsData = {
-    hasAnalytics: true,
-    {% if analytics.chart_data and analytics.chart_data.data_points %}
-    chartData: {{ analytics.chart_data.data_points | tojson | safe }},
-    {% else %}
-    chartData: [],
-    {% endif %}
-    {% if analytics.chart_data and analytics.chart_data.fullness_distribution %}
-    distributionData: {{ analytics.chart_data.fullness_distribution | tojson | safe }},
-    {% else %}
-    distributionData: {},
-    {% endif %}
-    {% if analytics.trends_data %}
-    trendsData: {{ analytics.trends_data | tojson | safe }}
-    {% else %}
-    trendsData: {}
-    {% endif %}
+const PG_COLORS = {
+    accent: '#B8752E',
+    accentFill: 'rgba(184,117,46,0.15)',
+    secondary: '#3F6E64',
+    gray: '#D6CDBB',
+    grid: '#E7E0D2',
+    axis: '#6B6255',
+    diverge: ['#B8483C', '#C98A3E', '#D3B26A', '#A9C08A', '#79A868', '#4F7942']
 };
-</script>
-{% else %}
-<script>
-window.pantryAnalyticsData = {
-    hasAnalytics: false,
-    chartData: [],
-    distributionData: {},
-    trendsData: {}
-};
+Chart.defaults.font.family = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
+Chart.defaults.color = PG_COLORS.axis;
+
+const fullnessPoints = {{ analytics.chart_data.data_points | tojson }};
+new Chart(document.getElementById('chartFullnessTime'), {
+    type: 'line',
+    data: {
+        labels: fullnessPoints.map(p => { const d = new Date(p.timestamp); return d.toLocaleDateString(); }),
+        datasets: [{
+            data: fullnessPoints.map(p => p.fullness),
+            borderColor: PG_COLORS.accent, backgroundColor: PG_COLORS.accentFill,
+            fill: true, tension: 0.25, pointRadius: 0, pointHoverRadius: 4, borderWidth: 2
+        }]
+    },
+    options: {
+        responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+        scales: {
+            x: { grid: { display: false }, ticks: { maxRotation: 45, minRotation: 45, autoSkip: true, maxTicksLimit: 12 } },
+            y: { grid: { color: PG_COLORS.grid }, min: 0, max: 100, ticks: { callback: v => v + '%' } }
+        }
+    }
+});
+
+const dow = {{ analytics.charts.day_of_week | tojson }};
+new Chart(document.getElementById('chartDow'), {
+    type: 'bar',
+    data: { labels: dow.map(d => d.label), datasets: [{ data: dow.map(d => d.count), backgroundColor: PG_COLORS.accent, borderRadius: 4 }] },
+    options: {
+        responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+        scales: { x: { grid: { display: false } }, y: { grid: { color: PG_COLORS.grid } } }
+    }
+});
+
+const hod = {{ analytics.charts.hour_of_day | tojson }};
+new Chart(document.getElementById('chartHour'), {
+    type: 'bar',
+    data: { labels: hod.map(h => h.hour), datasets: [{ data: hod.map(h => h.count), backgroundColor: PG_COLORS.secondary, borderRadius: 3, barPercentage: 0.9, categoryPercentage: 0.9 }] },
+    options: {
+        responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+        scales: { x: { grid: { display: false }, ticks: { maxTicksLimit: 8 } }, y: { grid: { color: PG_COLORS.grid } } }
+    }
+});
+
+const buckets = {{ analytics.charts.fullness_buckets | tojson }};
+new Chart(document.getElementById('chartBuckets'), {
+    type: 'bar',
+    data: { labels: buckets.map(b => b.label), datasets: [{ data: buckets.map(b => b.count), backgroundColor: PG_COLORS.diverge, borderRadius: 4 }] },
+    options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => c.parsed.y + ' report' + (c.parsed.y === 1 ? '' : 's') } } },
+        scales: { x: { grid: { display: false } }, y: { grid: { color: PG_COLORS.grid }, ticks: { precision: 0 } } }
+    }
+});
 </script>
 {% endif %}
 
 <script>
 $(document).ready(function() {
     $('#photoModal').on('show.bs.modal', function (event) {
-        var button = $(event.relatedTarget); 
-        var imageUrl = button.attr('href'); 
+        var button = $(event.relatedTarget);
+        var imageUrl = button.attr('href');
         var modal = $(this);
         modal.find('.modal-body #modal-image').attr('src', imageUrl);
     })
 });
 
-    document.addEventListener('DOMContentLoaded', function() {
-        const reportTimes = document.querySelectorAll('.report-time');
-        reportTimes.forEach(function(reportTime) {
-            const utcTime = reportTime.getAttribute('data-utc-time');
-            const localTime = new Date(utcTime);
-            const now = new Date();
-            const diffInMinutes = Math.floor((now - localTime) / 60000); // Difference in minutes
-            let timeAgo;
-            if (diffInMinutes < 60) {
-                timeAgo = `${diffInMinutes} minutes ago`;
-            } else {
-                const diffInHours = Math.floor(diffInMinutes / 60); // Difference in hours
-                if (diffInHours < 24) {
-                    timeAgo = `${diffInHours} hours ago`;
-                } else {
-                    timeAgo = localTime.toLocaleString(); // Fallback to local time string
-                }
-            }
-
-            reportTime.textContent = timeAgo;
-        });
-    });
-
-    // Analytics Charts
-    if (window.pantryAnalyticsData && window.pantryAnalyticsData.hasAnalytics) {
-        console.log('Analytics data available');
-        
-        // Check if Chart.js is loaded
-        if (typeof Chart !== 'undefined') {
-            try {
-                // Extract data from global object
-                const chartData = window.pantryAnalyticsData.chartData || [];
-                const distributionData = window.pantryAnalyticsData.distributionData || {};
-                
-                // Fullness Trend Chart
-                const fullnessCtx = document.getElementById('fullnessChart')?.getContext('2d');
-                if (fullnessCtx && chartData.length > 0) {
-                    // Create color arrays based on fullness levels
-                    const pointColors = chartData.map(point => {
-                        if (point.fullness <= 33) {
-                            return '#dc3545'; // Red for empty/low
-                        } else if (point.fullness <= 67) {
-                            return '#ffc107'; // Yellow for half full
-                        } else {
-                            return '#28a745'; // Green for full
-                        }
-                    });
-                    
-                    const fullnessChart = new Chart(fullnessCtx, {
-                        type: 'line',
-                        data: {
-                            labels: chartData.map(point => {
-                                const date = new Date(point.timestamp);
-                                return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-                            }),
-                            datasets: [{
-                                label: 'Fullness (%)',
-                                data: chartData.map(point => point.fullness),
-                                borderColor: '#007bff',
-                                backgroundColor: 'rgba(0, 123, 255, 0.1)',
-                                borderWidth: 2,
-                                fill: false,
-                                tension: 0.3,
-                                pointBackgroundColor: pointColors,
-                                pointBorderColor: '#ffffff',
-                                pointBorderWidth: 2,
-                                pointRadius: 6,
-                                pointHoverRadius: 8
-                            }]
-                        },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            scales: {
-                                x: {
-                                    title: {
-                                        display: true,
-                                        text: 'Date & Time'
-                                    }
-                                },
-                                y: {
-                                    beginAtZero: true,
-                                    max: 100,
-                                    title: {
-                                        display: true,
-                                        text: 'Fullness (%)'
-                                    }
-                                }
-                            }
-                        }
-                    });
-                }
-
-                // Fullness Distribution Pie Chart
-                const distributionCtx = document.getElementById('distributionChart')?.getContext('2d');
-                if (distributionCtx && distributionData && Object.keys(distributionData).length > 0) {
-                    const distributionChart = new Chart(distributionCtx, {
-                        type: 'doughnut',
-                        data: {
-                            labels: ['Empty/Low (≤33%)', 'Medium (34-66%)', 'Full (≥67%)'],
-                            datasets: [{
-                                data: [
-                                    (distributionData.empty || 0) + (distributionData.low || 0),
-                                    distributionData.medium || 0,
-                                    (distributionData.high || 0) + (distributionData.full || 0)
-                                ],
-                                backgroundColor: [
-                                    '#dc3545',  // Red for empty/low
-                                    '#ffc107',  // Yellow for medium
-                                    '#28a745'   // Green for full
-                                ],
-                                borderWidth: 2,
-                                borderColor: '#fff'
-                            }]
-                        },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            plugins: {
-                                legend: {
-                                    position: 'bottom'
-                                }
-                            }
-                        }
-                    });
-                }
-                
-                // Time Period Trends Chart - TEMPORARILY DISABLED
-                /*
-                const trendsData = window.pantryAnalyticsData.trendsData || {};
-                if (Object.keys(trendsData).length > 0) {
-                    let trendsChart = null;
-                    
-                    // Function to show trend chart
-                    function switchTrendPeriod(period) {
-                        // Update buttons
-                        document.querySelectorAll('.trend-btn').forEach(btn => {
-                            btn.classList.remove('active');
-                            if (btn.getAttribute('data-period') === period) {
-                                btn.classList.add('active');
-                            }
-                        });
-                        
-                        // Get data
-                        const data = trendsData[period];
-                        if (!data || !data.length) {
-                            return;
-                        }
-                        
-                        // Destroy existing chart
-                        if (trendsChart) {
-                            trendsChart.destroy();
-                        }
-                        
-                        // Create simple chart
-                        const canvas = document.getElementById('trendsChart');
-                        if (canvas) {
-                            trendsChart = new Chart(canvas, {
-                                type: 'line',
-                                data: {
-                                    labels: data.map(d => d.label),
-                                    datasets: [{
-                                        label: 'Average Fullness',
-                                        data: data.map(d => d.average_fullness),
-                                        borderColor: '#007bff',
-                                        backgroundColor: 'rgba(0,123,255,0.1)',
-                                        borderWidth: 2
-                                    }]
-                                },
-                                options: {
-                                    responsive: true,
-                                    scales: {
-                                        y: {
-                                            beginAtZero: true,
-                                            max: 100
-                                        }
-                                    }
-                                }
-                            });
-                        }
-                    }
-                    
-                    // Add click listeners to buttons
-                    document.querySelectorAll('.trend-btn').forEach(btn => {
-                        btn.addEventListener('click', function() {
-                            const period = this.getAttribute('data-period');
-                            switchTrendPeriod(period);
-                        });
-                    });
-                    
-                    // Initialize with first available period
-                    const defaultPeriod = document.querySelector('.trend-btn.active')?.getAttribute('data-period');
-                    if (defaultPeriod) {
-                        switchTrendPeriod(defaultPeriod);
-                    }
-                }
-                */
-                
-            } catch (error) {
-                console.error('Error initializing charts:', error);
-            }
+document.addEventListener('DOMContentLoaded', function() {
+    const reportTimes = document.querySelectorAll('.report-time');
+    reportTimes.forEach(function(reportTime) {
+        const utcTime = reportTime.getAttribute('data-utc-time');
+        const localTime = new Date(utcTime);
+        const now = new Date();
+        const diffInMinutes = Math.floor((now - localTime) / 60000);
+        let timeAgo;
+        if (diffInMinutes < 60) {
+            timeAgo = `Last updated ${diffInMinutes} minute${diffInMinutes === 1 ? '' : 's'} ago`;
         } else {
-            console.error('Chart.js library is not loaded!');
+            const diffInHours = Math.floor(diffInMinutes / 60);
+            if (diffInHours < 24) {
+                timeAgo = `Last updated ${diffInHours} hour${diffInHours === 1 ? '' : 's'} ago`;
+            } else {
+                timeAgo = 'Last updated ' + localTime.toLocaleString();
+            }
         }
-    }
+        reportTime.textContent = timeAgo;
+    });
+});
 
-    // Email subscription functionality
 function handleSubscription(event) {
     event.preventDefault();
-    
     const email = document.getElementById('subscriptionEmail').value;
     const messageDiv = document.getElementById('subscriptionMessage');
     const submitBtn = event.target.querySelector('button[type="submit"]');
-    
-    // Show loading state
+
     submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Subscribing...';
     submitBtn.disabled = true;
-    
-    // Send subscription request
+
     fetch('/location/subscribe/{{ pantry.id }}', {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            email: email
-        })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email })
     })
     .then(response => response.json())
     .then(data => {
         messageDiv.style.display = 'block';
-        
         if (data.success) {
             messageDiv.className = 'alert alert-success mt-2';
             messageDiv.innerHTML = '<i class="fas fa-check-circle"></i> ' + data.message;
             document.getElementById('subscriptionEmail').value = '';
             submitBtn.innerHTML = '<i class="fas fa-check"></i> Subscribed!';
             setTimeout(() => {
-                submitBtn.innerHTML = '<i class="fas fa-bell"></i> Subscribe to Updates';
+                submitBtn.innerHTML = '<i class="fas fa-bell"></i> Subscribe';
                 submitBtn.disabled = false;
             }, 3000);
         } else {
             messageDiv.className = 'alert alert-danger mt-2';
             messageDiv.innerHTML = '<i class="fas fa-exclamation-circle"></i> ' + data.message;
-            submitBtn.innerHTML = '<i class="fas fa-bell"></i> Subscribe to Updates';
+            submitBtn.innerHTML = '<i class="fas fa-bell"></i> Subscribe';
             submitBtn.disabled = false;
         }
     })
@@ -722,21 +460,17 @@ function handleSubscription(event) {
         messageDiv.style.display = 'block';
         messageDiv.className = 'alert alert-danger mt-2';
         messageDiv.innerHTML = '<i class="fas fa-exclamation-circle"></i> An error occurred. Please try again.';
-        submitBtn.innerHTML = '<i class="fas fa-bell"></i> Subscribe to Updates';
+        submitBtn.innerHTML = '<i class="fas fa-bell"></i> Subscribe';
         submitBtn.disabled = false;
     });
 }
 
-// Facebook sharing script
 function shareOnFacebook() {
     const url = window.location.href;
     const title = encodeURIComponent('{{ pantry.name }} - Little Free Pantry Status');
     const description = encodeURIComponent('Check out the current status of this community pantry and help keep it stocked!');
-    
     const shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}&quote=${title}%20-%20${description}`;
-    
     window.open(shareUrl, 'facebook-share-dialog', 'width=626,height=436');
 }
-
 </script>
 {% endblock %}

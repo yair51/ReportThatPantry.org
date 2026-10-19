@@ -21,6 +21,7 @@ import calendar
 import numpy as np
 from collections import defaultdict, Counter
 import statistics
+import requests
 # Google Vision API imports
 from google.cloud import vision
 # Import our enhanced vision analysis
@@ -362,11 +363,49 @@ def calculate_pantry_analytics(location):
         
         analytics['patterns'].update({
             'peak_depletion_hours': [f"{hour:02d}:00 ({avg:.1f}% avg)" for hour, avg in peak_depletion_hours],
-            'month_averages': {month: round(sum(fullness_list) / len(fullness_list), 1) 
+            'month_averages': {month: round(sum(fullness_list) / len(fullness_list), 1)
                              for month, fullness_list in month_patterns.items()},
             'busiest_months': sorted(month_patterns.items(), key=lambda x: len(x[1]), reverse=True)[:3]
         })
-        
+
+        # Chart-ready day-of-week / hour-of-day / fullness-bucket breakdowns
+        # (same shape as the Burrito Brigade trend charts, for one pantry)
+        day_labels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+        day_counts = [0] * 7
+        hour_counts = [0] * 24
+        bucket_labels = ['Empty', '1–24%', '25–49%', '50–74%', '75–99%', 'Full']
+        bucket_counts = [0] * 6
+
+        for report in reports:
+            t = normalize_datetime(report.time)
+            day_counts[(t.weekday() + 1) % 7] += 1
+            hour_counts[t.hour] += 1
+
+            f = report.pantry_fullness
+            if f is None:
+                continue
+            elif f <= 0:
+                bucket_counts[0] += 1
+            elif f < 25:
+                bucket_counts[1] += 1
+            elif f < 50:
+                bucket_counts[2] += 1
+            elif f < 75:
+                bucket_counts[3] += 1
+            elif f < 100:
+                bucket_counts[4] += 1
+            else:
+                bucket_counts[5] += 1
+
+        analytics['charts'] = {
+            'day_of_week': [{'label': label, 'count': count} for label, count in zip(day_labels, day_counts)],
+            'hour_of_day': [{'hour': h, 'count': count} for h, count in enumerate(hour_counts)],
+            'fullness_buckets': [
+                {'label': label, 'count': count, 'pct': round(100 * count / len(reports), 1)}
+                for label, count in zip(bucket_labels, bucket_counts)
+            ],
+        }
+
         # Add advanced insights
         analytics['insights'] = generate_pantry_insights(analytics, reports)
         
@@ -597,29 +636,35 @@ def location(location_id):
 
     # Get user's subscribed locations if authenticated
     if current_user.is_authenticated:
-            subscribed_locations = [notification.location_id for notification in current_user.notifications]
-            print(subscribed_locations)
+        subscribed_locations = [notification.location_id for notification in current_user.notifications]
 
     # Check if user can edit this location
     can_edit = current_user.is_authenticated and location.user_id == current_user.id
-    print("pantry reports: ", location.reports)
-    print("pantry reports type: ", type(location.reports))
     # order the location.reports by time
     location.reports = sorted(location.reports, key=lambda report: report.id, reverse=True)  # Descending order
     # Get most recent report
     latest_report = location.reports[0] if location.reports else None
-    
+
     # Calculate analytics for this pantry
     analytics = calculate_pantry_analytics(location)
-    
-    return render_template("pantry.html", 
-                         user=current_user, 
-                         pantry=location, 
-                         latest_report=latest_report, 
-                         subscribed_locations=subscribed_locations, 
-                         can_edit=can_edit, 
-                         current_app=current_app, 
+
+    # Paginated report log, newest first
+    log_page = request.args.get('page', 1, type=int)
+    log_pagination = (
+        Report.query.filter_by(location_id=location.id)
+        .order_by(Report.time.desc())
+        .paginate(page=log_page, per_page=20, error_out=False)
+    )
+
+    return render_template("pantry.html",
+                         user=current_user,
+                         pantry=location,
+                         latest_report=latest_report,
+                         subscribed_locations=subscribed_locations,
+                         can_edit=can_edit,
+                         current_app=current_app,
                          analytics=analytics,
+                         log_pagination=log_pagination,
                          title="Pantry Details")
 
 
@@ -934,6 +979,35 @@ def status():
                          subscribed_locations=subscribed_locations,
                          nationwide_analytics=nationwide_analytics,
                          nationwide_insights=nationwide_insights)
+
+
+@views.route('/burrito-brigade', methods=['GET'])
+@views.route('/burrito-brigade/', methods=['GET'])
+def burrito_brigade():
+    # Scope everything to Oregon, the network Burrito Brigade coordinates
+    locations = (
+        db.session.query(Location)
+        .options(joinedload(Location.reports))
+        .filter(Location.state == 'OR')
+        .all()
+    )
+
+    for location in locations:
+        location.reports = sorted(location.reports, key=lambda report: report.id, reverse=False)
+
+    oregon_analytics = calculate_nationwide_analytics(locations=locations)
+    trends = calculate_trend_analytics(locations)
+    heatmap_data = get_heatmap_data(locations)
+
+    return render_template(
+        "burrito_brigade.html",
+        user=current_user,
+        title="Oregon Pantry Network",
+        api_key=os.environ.get('GOOGLE_MAPS_API_KEY'),
+        nationwide_analytics=oregon_analytics,
+        trends=trends,
+        heatmap_data=heatmap_data,
+    )
 
 
 # Returns all locations in JSON format (for status page)
@@ -1332,17 +1406,20 @@ def api_analytics(location_id):
         })
 
 
-def calculate_nationwide_analytics():
+def calculate_nationwide_analytics(locations=None):
     """
-    Calculate analytics and trends across all pantries in the network
+    Calculate analytics and trends across a set of pantries in the network.
+    Pass a pre-filtered `locations` list (e.g. all Oregon locations) to scope
+    the analytics to a subset of the network; omit it to analyze everything.
     """
     from datetime import datetime, timedelta
     from collections import defaultdict
     import statistics
-    
-    # Get all locations with their reports
-    locations = db.session.query(Location).options(joinedload(Location.reports)).all()
-    
+
+    # Get locations with their reports (all locations by default)
+    if locations is None:
+        locations = db.session.query(Location).options(joinedload(Location.reports)).all()
+
     if not locations:
         return None
     
@@ -1433,26 +1510,40 @@ def calculate_nationwide_analytics():
     def new_state_stats():
         return {'locations': 0, 'reports': 0, 'avg_fullness': 0.0, 'fullness_values': []}
     state_stats = defaultdict(new_state_stats)
+    city_stats = defaultdict(new_state_stats)
     for location in active_locations:
         state = location.state
         state_stats[state]['locations'] += 1
         state_stats[state]['reports'] += len(location.reports)
-        
+
+        city = location.city or 'Unknown'
+        city_stats[city]['locations'] += 1
+        city_stats[city]['reports'] += len(location.reports)
+
         if location.reports:
             latest_fullness = location.reports[-1].pantry_fullness
             if latest_fullness is not None:
                 state_stats[state]['fullness_values'].append(latest_fullness)
-    
+                city_stats[city]['fullness_values'].append(latest_fullness)
+
     # Calculate state averages and convert to full state names
     state_breakdown_with_full_names = {}
     for state_abbrev, state_data in state_stats.items():
         if state_data['fullness_values']:
             state_data['avg_fullness'] = round(statistics.mean(state_data['fullness_values']), 1)
         del state_data['fullness_values']  # Remove raw data
-        
+
         # Use full state name as the key
         full_state_name = get_state_full_name(state_abbrev)
         state_breakdown_with_full_names[full_state_name] = state_data
+
+    # Calculate city averages
+    city_breakdown = {}
+    for city_name, city_data in city_stats.items():
+        if city_data['fullness_values']:
+            city_data['avg_fullness'] = round(statistics.mean(city_data['fullness_values']), 1)
+        del city_data['fullness_values']
+        city_breakdown[city_name] = city_data
     
     # Vision API analytics (if available)
     vision_reports = [r for r in all_reports if r.vision_analysis]
@@ -1568,6 +1659,7 @@ def calculate_nationwide_analytics():
         },
         'chart_data': chart_data,
         'state_breakdown': state_breakdown_with_full_names,
+        'city_breakdown': city_breakdown,
         'ai_insights': {
             'reports_with_ai': len(vision_reports),
             'common_foods': common_foods,
@@ -1578,6 +1670,263 @@ def calculate_nationwide_analytics():
             'end': normalize_datetime(end_date)
         }
     }
+
+
+def get_pantries_needing_attention(locations, fullness_threshold=25, recent_days=30):
+    """
+    Return pantries whose most recent report, filed within `recent_days`,
+    reported fullness at or below `fullness_threshold` — a live restocking
+    to-do list, sorted most-urgent (emptiest) first.
+    """
+    now = datetime.now(timezone.utc)
+    cutoff = now - timedelta(days=recent_days)
+
+    urgent = []
+    for location in locations:
+        if not location.reports:
+            continue
+        latest_report = max(location.reports, key=lambda r: r.time)
+        report_time = normalize_datetime(latest_report.time)
+        if report_time < cutoff:
+            continue
+        if latest_report.pantry_fullness is None or latest_report.pantry_fullness > fullness_threshold:
+            continue
+        urgent.append({
+            'location': location,
+            'fullness': latest_report.pantry_fullness,
+            'time': latest_report.time,
+            'days_ago': (now - report_time).days,
+        })
+
+    urgent.sort(key=lambda entry: entry['fullness'])
+    return urgent
+
+
+def get_stale_locations(locations, days=90):
+    """
+    Return the count and list of locations with no report in `days`
+    (or no reports at all) — pantries the community isn't currently watching.
+    """
+    now = datetime.now(timezone.utc)
+    cutoff = now - timedelta(days=days)
+
+    stale = []
+    for location in locations:
+        if not location.reports:
+            stale.append(location)
+            continue
+        latest_report = max(location.reports, key=lambda r: r.time)
+        if normalize_datetime(latest_report.time) < cutoff:
+            stale.append(location)
+
+    return len(stale), stale
+
+
+def calculate_trend_analytics(locations):
+    """
+    Compute community-facing trend analytics for a set of locations —
+    which pantries get the most reports, when people report, how full
+    pantries tend to be, and volume over time. This is about understanding
+    usage patterns, not current live status.
+    """
+    all_reports = []
+    for location in locations:
+        for r in location.reports:
+            if r.time is not None:
+                all_reports.append((location, r))
+
+    if not all_reports:
+        return None
+
+    total_reports = len(all_reports)
+
+    # Which pantries get the most community attention
+    location_counts = Counter()
+    for location, r in all_reports:
+        location_counts[location] += 1
+
+    top_pantries = [
+        {'name': loc.name, 'city': loc.city, 'count': count}
+        for loc, count in location_counts.most_common(15)
+    ]
+    top15_reports = sum(entry['count'] for entry in top_pantries)
+    concentration_pct = round(100 * top15_reports / total_reports, 1)
+
+    # When people report: day of week (Sun..Sat) and hour of day
+    day_labels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+    day_counts = [0] * 7
+    hour_counts = [0] * 24
+    bucket_labels = ['Empty', '1–24%', '25–49%', '50–74%', '75–99%', 'Full']
+    bucket_counts = [0] * 6
+    monthly_counts = defaultdict(int)
+
+    for location, r in all_reports:
+        t = normalize_datetime(r.time)
+        day_counts[(t.weekday() + 1) % 7] += 1  # Mon=0..Sun=6 -> Sun=0..Sat=6
+        hour_counts[t.hour] += 1
+        monthly_counts[t.strftime('%Y-%m')] += 1
+
+        f = r.pantry_fullness
+        if f is None:
+            continue
+        elif f <= 0:
+            bucket_counts[0] += 1
+        elif f < 25:
+            bucket_counts[1] += 1
+        elif f < 50:
+            bucket_counts[2] += 1
+        elif f < 75:
+            bucket_counts[3] += 1
+        elif f < 100:
+            bucket_counts[4] += 1
+        else:
+            bucket_counts[5] += 1
+
+    day_of_week = [{'label': label, 'count': count} for label, count in zip(day_labels, day_counts)]
+    hour_of_day = [{'hour': h, 'count': count} for h, count in enumerate(hour_counts)]
+    fullness_buckets = [
+        {'label': label, 'count': count, 'pct': round(100 * count / total_reports, 1)}
+        for label, count in zip(bucket_labels, bucket_counts)
+    ]
+
+    sorted_months = sorted(monthly_counts.keys())
+    monthly_trend = [
+        {'label': datetime.strptime(m, '%Y-%m').strftime('%b %y'), 'count': monthly_counts[m]}
+        for m in sorted_months
+    ]
+
+    friday_share = round(100 * day_counts[5] / total_reports, 1)
+    evening_share = round(100 * sum(hour_counts[17:24]) / total_reports, 1)
+    all_times = [normalize_datetime(r.time) for _, r in all_reports]
+
+    fullness_values = [r.pantry_fullness for _, r in all_reports if r.pantry_fullness is not None]
+    avg_fullness = round(sum(fullness_values) / len(fullness_values), 1) if fullness_values else None
+
+    return {
+        'total_reports': total_reports,
+        'total_locations': len(locations),
+        'reporting_locations': len(location_counts),
+        'avg_fullness': avg_fullness,
+        'date_range': {'start': min(all_times), 'end': max(all_times)},
+        'top_pantries': top_pantries,
+        'concentration_pct': concentration_pct,
+        'day_of_week': day_of_week,
+        'hour_of_day': hour_of_day,
+        'friday_share': friday_share,
+        'evening_share': evening_share,
+        'fullness_buckets': fullness_buckets,
+        'monthly_trend': monthly_trend,
+    }
+
+
+_median_income_cache = {}
+
+
+def get_median_household_income(city_names, state_fips='41'):
+    """
+    Look up median household income (ACS 5-Year, table B19013_001E) for a
+    set of Oregon city/place names via the Census Bureau API. Results are
+    cached in-process for the life of the server, since this figure only
+    changes with each annual ACS release.
+
+    Requires a free Census API key (https://api.census.gov/data/key_signup.html)
+    set as CENSUS_API_KEY — the Census API started rejecting keyless requests.
+    Returns {city_name: income_or_None}; failures degrade to None per city
+    rather than raising, so a Census outage doesn't break the page.
+    """
+    uncached = [c for c in city_names if c and c not in _median_income_cache]
+    if uncached:
+        api_key = os.environ.get('CENSUS_API_KEY')
+        try:
+            params = {'get': 'NAME,B19013_001E', 'for': 'place:*', 'in': f'state:{state_fips}'}
+            if api_key:
+                params['key'] = api_key
+            resp = requests.get('https://api.census.gov/data/2022/acs/acs5', params=params, timeout=8)
+            resp.raise_for_status()
+            rows = resp.json()
+            header, data_rows = rows[0], rows[1:]
+            name_idx = header.index('NAME')
+            income_idx = header.index('B19013_001E')
+
+            def normalize(place_name):
+                place_name = place_name.split(',')[0]
+                for suffix in (' city', ' town', ' CDP', ' municipality'):
+                    if place_name.endswith(suffix):
+                        place_name = place_name[: -len(suffix)]
+                        break
+                return place_name.strip().lower()
+
+            income_by_place = {}
+            for row in data_rows:
+                raw = row[income_idx]
+                if raw is None or int(raw) < 0:  # Census uses negative sentinels for missing data
+                    continue
+                income_by_place[normalize(row[name_idx])] = int(raw)
+
+            for city in uncached:
+                _median_income_cache[city] = income_by_place.get(city.strip().lower())
+        except Exception as e:
+            print(f"Error fetching Census median household income: {e}")
+            for city in uncached:
+                _median_income_cache.setdefault(city, None)
+
+    return {city: _median_income_cache.get(city) for city in city_names}
+
+
+def get_heatmap_data(locations, empty_threshold=33):
+    """
+    Build weighted point sets for the map: report frequency (how often
+    each pantry is checked on), empty frequency (how often it's reported
+    at or below `empty_threshold`% full), and median household income of
+    the pantry's town (from Census data). Only locations with coordinates
+    are included. Each point carries the pantry's name/city so the map can
+    label individual pantries, not just show anonymous blobs.
+    """
+    reported_points = []
+    empty_points = []
+
+    for location in locations:
+        if location.latitude is None or location.longitude is None:
+            continue
+        report_count = len(location.reports)
+        if report_count == 0:
+            continue
+        reported_points.append({
+            'lat': location.latitude,
+            'lng': location.longitude,
+            'weight': report_count,
+            'name': location.name,
+            'city': location.city,
+        })
+
+        empty_count = sum(1 for r in location.reports if r.pantry_fullness is not None and r.pantry_fullness <= empty_threshold)
+        if empty_count > 0:
+            empty_points.append({
+                'lat': location.latitude,
+                'lng': location.longitude,
+                'weight': empty_count,
+                'name': location.name,
+                'city': location.city,
+            })
+
+    city_names = list({location.city for location in locations if location.city})
+    income_by_city = get_median_household_income(city_names)
+
+    income_points = []
+    for location in locations:
+        if location.latitude is None or location.longitude is None:
+            continue
+        income = income_by_city.get(location.city)
+        if income:
+            income_points.append({
+                'lat': location.latitude,
+                'lng': location.longitude,
+                'weight': income,
+                'name': location.name,
+                'city': location.city,
+            })
+
+    return {'reported': reported_points, 'empty': empty_points, 'income': income_points}
 
 
 def generate_nationwide_insights(analytics):

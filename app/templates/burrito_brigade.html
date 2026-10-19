@@ -1,0 +1,398 @@
+{% extends "base-new.html" %}
+
+{% block style %}
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+<style>
+    :root {
+        --bb-bg: #F7F3EA;
+        --bb-surface: #FFFFFF;
+        --bb-sunken: #EFE9DC;
+        --bb-text: #221D16;
+        --bb-text-secondary: #6B6255;
+        --bb-text-muted: #948C7C;
+        --bb-border: rgba(34,29,22,0.12);
+        --bb-accent: #B8752E;
+        --bb-accent-dark: #8A5420;
+        --bb-accent-bg: #F1E1C6;
+        --bb-accent-ink: #6B4118;
+        --bb-secondary: #3F6E64;
+        --bb-secondary-bg: #DCE8E4;
+        --bb-secondary-ink: #1F4038;
+        --bb-critical: #B8483C;
+        --bb-critical-bg: #F5DEDA;
+        --bb-critical-ink: #7A2E24;
+    }
+
+    .content-area { margin-top: 0 !important; padding-top: 0 !important; }
+    body { background: var(--bb-bg) !important; font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
+
+    .bb-hero {
+        background: linear-gradient(135deg, #8A5420 0%, #B8752E 55%, #3F6E64 100%) !important;
+        color: white !important;
+        padding: 90px 0 55px 0;
+        margin: 0 0 40px 0;
+        width: 100vw;
+        margin-left: calc(-50vw + 50%);
+    }
+    .bb-hero-content { max-width: 1140px; margin: 0 auto; padding: 0 20px; }
+    .bb-eyebrow { text-transform: uppercase; letter-spacing: 2px; font-size: 0.85rem; font-weight: 700; opacity: 0.85; margin-bottom: 10px; }
+    .bb-title { font-family: Georgia, serif; font-size: 3rem; font-weight: 700; margin-bottom: 14px; }
+    .bb-subtitle { font-size: 1.1rem; opacity: 0.95; max-width: 680px; margin-bottom: 36px; }
+
+    .bb-kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; max-width: 1100px; }
+    .bb-kpi { background: rgba(255,255,255,0.14); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.3); border-radius: 16px; padding: 22px 20px; text-align: center; }
+    .bb-kpi-value { font-family: Georgia, serif; font-size: 2.2rem; font-weight: 700; line-height: 1; margin-bottom: 4px; }
+    .bb-kpi-label { font-size: 0.82rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.9; }
+
+    .container-bb { max-width: 1100px; margin: 0 auto; padding: 0 20px; }
+    .bb-section { margin-bottom: 42px; }
+    .bb-section-head { margin-bottom: 4px; }
+    .bb-section h2 { font-family: Georgia, serif; font-weight: 700; font-size: 1.5rem; color: var(--bb-text); margin-bottom: 2px; }
+    .bb-section-note { color: var(--bb-text-secondary); font-size: 0.92rem; margin-bottom: 18px; max-width: 70ch; }
+    .bb-card { background: var(--bb-surface); border: 1px solid var(--bb-border); border-radius: 16px; padding: 26px 28px; }
+    .bb-callout { background: var(--bb-sunken); border-radius: 12px; padding: 16px 20px; margin-top: 18px; font-size: 0.94rem; color: var(--bb-text-secondary); }
+    .bb-callout strong { color: var(--bb-text); }
+
+    .bb-chart-box { position: relative; width: 100%; }
+    .bb-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+    @media (max-width: 700px) { .bb-grid-2 { grid-template-columns: 1fr; } }
+
+    /* Heatmap toggle */
+    .bb-toggle { display: inline-flex; background: var(--bb-sunken); border-radius: 30px; padding: 4px; margin-bottom: 18px; }
+    .bb-toggle button {
+        border: none; background: transparent; padding: 9px 20px; border-radius: 24px; font-weight: 600;
+        font-size: 0.9rem; color: var(--bb-text-secondary); cursor: pointer; transition: all 0.2s ease;
+    }
+    .bb-toggle button.active { background: var(--bb-accent); color: white; box-shadow: 0 2px 8px rgba(184,117,46,0.35); }
+    #bb-map { width: 100%; height: 460px; border-radius: 14px; overflow: hidden; border: 1px solid var(--bb-border); }
+    .bb-map-legend { display: flex; align-items: center; gap: 10px; margin-top: 12px; font-size: 0.85rem; color: var(--bb-text-secondary); }
+    .bb-legend-gradient { height: 10px; width: 160px; border-radius: 6px; background: linear-gradient(90deg, rgba(63,110,100,0.05), #3F6E64 60%, #8A5420 85%, #B8483C); }
+
+
+    footer.bb-footer { margin-top: 10px; padding-top: 18px; border-top: 1px solid var(--bb-border); font-size: 0.82rem; color: var(--bb-text-muted); }
+
+    @media (max-width: 768px) {
+        .bb-title { font-size: 2rem; }
+        .bb-subtitle { font-size: 1rem; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="bb-hero">
+    <div class="bb-hero-content">
+        <div class="bb-eyebrow"><i class="fas fa-map-marker-alt"></i> Prepared for Burrito Brigade</div>
+        <h1 class="bb-title">How Oregon's Little Free Pantries Are Used</h1>
+        <p class="bb-subtitle">A look at community reporting patterns across the Little Free Pantries you coordinate — where activity concentrates, when people check in, and how stock levels tend to run.</p>
+
+        {% if trends %}
+        <div class="bb-kpi-row">
+            <div class="bb-kpi">
+                <div class="bb-kpi-value">{{ trends.total_locations }}</div>
+                <div class="bb-kpi-label">Pantries tracked</div>
+            </div>
+            <div class="bb-kpi">
+                <div class="bb-kpi-value">{{ trends.total_reports }}</div>
+                <div class="bb-kpi-label">Community check-ins</div>
+            </div>
+            <div class="bb-kpi">
+                <div class="bb-kpi-value">{{ trends.avg_fullness }}%</div>
+                <div class="bb-kpi-label">Average fullness</div>
+            </div>
+            <div class="bb-kpi">
+                <div class="bb-kpi-value">{{ trends.date_range.start.strftime('%b %Y') }}</div>
+                <div class="bb-kpi-label">Tracking since</div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="container-bb">
+
+{% if trends %}
+
+<!-- Heatmap -->
+<div class="bb-section">
+    <div class="bb-section-head">
+        <h2>Where the need is</h2>
+    </div>
+    <p class="bb-section-note">Toggle between how often each area gets checked on by the community, how often those check-ins report the pantry empty or nearly empty, and median household income by town.</p>
+    <div class="bb-card">
+        <div class="bb-toggle">
+            <button id="btn-reported" class="active" onclick="bbSetHeatmapMode('reported')">Report frequency</button>
+            <button id="btn-empty" onclick="bbSetHeatmapMode('empty')">Empty frequency</button>
+            <button id="btn-income" onclick="bbSetHeatmapMode('income')">Median income</button>
+        </div>
+        <div id="bb-map"></div>
+        <div class="bb-map-legend">
+            <span id="bb-map-legend-min">–</span>
+            <span class="bb-legend-gradient"></span>
+            <span id="bb-map-legend-max">–</span>
+            <span id="bb-map-mode-label" style="margin-left:auto; font-weight:600; color:var(--bb-text);">Showing: report frequency</span>
+        </div>
+        <p style="font-size:0.82rem; color:var(--bb-text-muted); margin: 10px 0 0;">Each dot is one pantry, sized and colored by its count. Hover a dot for the pantry name and exact number.</p>
+    </div>
+</div>
+
+<!-- Top pantries -->
+<div class="bb-section">
+    <div class="bb-section-head"><h2>Where the community is most engaged</h2></div>
+    <p class="bb-section-note">Ranked by number of check-ins received. The busiest {{ trends.top_pantries|length }} pantries out of {{ trends.reporting_locations }} that have any reports account for {{ trends.concentration_pct }}% of every check-in.</p>
+    <div class="bb-card">
+        <div class="bb-chart-box" style="height: {{ trends.top_pantries|length * 32 + 60 }}px;">
+            <canvas id="chartTopPantries" role="img" aria-label="Horizontal bar chart of the most-reported pantries."></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- When people report -->
+<div class="bb-section">
+    <div class="bb-section-head"><h2>When people check in</h2></div>
+    <p class="bb-section-note">Friday alone accounts for {{ trends.friday_share }}% of all check-ins, and {{ trends.evening_share }}% of every report is filed between 5pm and midnight.</p>
+    <div class="bb-card">
+        <div class="bb-grid-2">
+            <div>
+                <div style="font-size:0.85rem;color:var(--bb-text-secondary);margin-bottom:8px;">By day of week</div>
+                <div class="bb-chart-box" style="height:220px;"><canvas id="chartDow" role="img" aria-label="Bar chart of check-ins by day of week, Friday highest."></canvas></div>
+            </div>
+            <div>
+                <div style="font-size:0.85rem;color:var(--bb-text-secondary);margin-bottom:8px;">By hour of day</div>
+                <div class="bb-chart-box" style="height:220px;"><canvas id="chartHour" role="img" aria-label="Bar chart of check-ins by hour of day, evenings highest."></canvas></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Fullness distribution -->
+<div class="bb-section">
+    <div class="bb-section-head"><h2>Stock levels swing to the extremes</h2></div>
+    <p class="bb-section-note">Fullness is self-reported on a 0–100% scale at each check-in.</p>
+    <div class="bb-card">
+        <div class="bb-chart-box" style="height:260px;"><canvas id="chartFullness" role="img" aria-label="Bar chart of reported fullness grouped into six ranges."></canvas></div>
+        <div class="bb-callout">
+            <strong>{{ trends.fullness_buckets[0].pct }}%</strong> of check-ins report a pantry completely empty, and <strong>{{ trends.fullness_buckets[5].pct }}%</strong> report it completely full — together the two extremes outnumber every middle range combined.
+        </div>
+    </div>
+</div>
+
+<!-- Monthly trend -->
+<div class="bb-section">
+    <div class="bb-section-head"><h2>Momentum over time</h2></div>
+    <p class="bb-section-note">Monthly check-in volume across the whole tracking period.</p>
+    <div class="bb-card">
+        <div class="bb-chart-box" style="height:260px;"><canvas id="chartMonthly" role="img" aria-label="Line chart of monthly check-in volume over time."></canvas></div>
+    </div>
+</div>
+
+<footer class="bb-footer">Source: Report That Pantry production database. Figures reflect Oregon-listed pantries only, as of the most recent data pull.</footer>
+
+{% else %}
+<div class="bb-card" style="text-align:center; padding: 60px 20px;">
+    <i class="fas fa-chart-line" style="font-size:2.5rem; color:var(--bb-text-muted); margin-bottom:16px;"></i>
+    <h4>No data yet</h4>
+    <p class="text-muted mb-0">No check-ins have been logged for Oregon pantries.</p>
+</div>
+{% endif %}
+
+</div>
+{% endblock %}
+
+{% block script %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% if trends %}
+<script>
+const BB_COLORS = {
+    accent: '#B8752E',
+    accentFill: 'rgba(184,117,46,0.15)',
+    secondary: '#3F6E64',
+    gray: '#D6CDBB',
+    grid: '#E7E0D2',
+    axis: '#6B6255',
+    diverge: ['#B8483C', '#C98A3E', '#D3B26A', '#A9C08A', '#79A868', '#4F7942']
+};
+
+Chart.defaults.font.family = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
+Chart.defaults.color = BB_COLORS.axis;
+
+const topPantries = {{ trends.top_pantries | tojson }};
+new Chart(document.getElementById('chartTopPantries'), {
+    type: 'bar',
+    data: {
+        labels: topPantries.map(p => p.name + (p.city ? ' (' + p.city + ')' : '')),
+        datasets: [{ data: topPantries.map(p => p.count), backgroundColor: BB_COLORS.accent, borderRadius: 4, barThickness: 18 }]
+    },
+    options: {
+        indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => c.parsed.x + ' check-ins' } } },
+        scales: {
+            x: { grid: { color: BB_COLORS.grid }, ticks: { color: BB_COLORS.axis } },
+            y: { grid: { display: false }, ticks: { color: BB_COLORS.axis, font: { size: 11 } } }
+        }
+    }
+});
+
+const dow = {{ trends.day_of_week | tojson }};
+new Chart(document.getElementById('chartDow'), {
+    type: 'bar',
+    data: {
+        labels: dow.map(d => d.label),
+        datasets: [{ data: dow.map(d => d.count), backgroundColor: dow.map(d => d.label === 'Fri' ? BB_COLORS.accent : BB_COLORS.gray), borderRadius: 4 }]
+    },
+    options: {
+        responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+        scales: { x: { grid: { display: false } }, y: { grid: { color: BB_COLORS.grid } } }
+    }
+});
+
+const hod = {{ trends.hour_of_day | tojson }};
+new Chart(document.getElementById('chartHour'), {
+    type: 'bar',
+    data: {
+        labels: hod.map(h => h.hour),
+        datasets: [{ data: hod.map(h => h.count), backgroundColor: hod.map(h => (h.hour >= 17 && h.hour <= 23) ? BB_COLORS.accent : BB_COLORS.gray), borderRadius: 3, barPercentage: 0.9, categoryPercentage: 0.9 }]
+    },
+    options: {
+        responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+        scales: {
+            x: { grid: { display: false }, ticks: { maxTicksLimit: 8 } },
+            y: { grid: { color: BB_COLORS.grid } }
+        }
+    }
+});
+
+const buckets = {{ trends.fullness_buckets | tojson }};
+new Chart(document.getElementById('chartFullness'), {
+    type: 'bar',
+    data: { labels: buckets.map(b => b.label), datasets: [{ data: buckets.map(b => b.pct), backgroundColor: BB_COLORS.diverge, borderRadius: 4 }] },
+    options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => c.parsed.y + '% of check-ins' } } },
+        scales: {
+            x: { grid: { display: false } },
+            y: { grid: { color: BB_COLORS.grid }, ticks: { callback: v => v + '%' } }
+        }
+    }
+});
+
+const monthly = {{ trends.monthly_trend | tojson }};
+new Chart(document.getElementById('chartMonthly'), {
+    type: 'line',
+    data: {
+        labels: monthly.map(m => m.label),
+        datasets: [{ data: monthly.map(m => m.count), borderColor: BB_COLORS.accent, backgroundColor: BB_COLORS.accentFill, fill: true, tension: 0.3, pointRadius: 0, pointHoverRadius: 4, borderWidth: 2 }]
+    },
+    options: {
+        responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+        scales: {
+            x: { grid: { display: false }, ticks: { maxRotation: 45, minRotation: 45, autoSkip: true, maxTicksLimit: 13 } },
+            y: { grid: { color: BB_COLORS.grid } }
+        }
+    }
+});
+</script>
+
+<script>
+// A heatmap blob isn't the right chart for ~60 known, named pantries — it
+// blurs exactly the thing that matters (which pantry). This instead draws
+// one circle per pantry, sized and colored by its count, with a hover
+// tooltip naming the pantry — a proportional-symbol map.
+const bbHeatmapData = {{ heatmap_data | tojson }};
+let bbMap, bbInfoWindow, bbMarkers = [];
+
+const BB_MAP_RAMP = [[63, 110, 100], [184, 117, 46], [184, 72, 60]]; // teal -> amber -> red
+
+const BB_MODE_META = {
+    reported: { mapLabel: 'Showing: report frequency', format: v => v.toLocaleString() + ' check-ins' },
+    empty: { mapLabel: 'Showing: empty frequency', format: v => v.toLocaleString() + ' empty reports' },
+    income: { mapLabel: 'Showing: median household income', format: v => '$' + v.toLocaleString() + ' median income' },
+};
+
+function bbRampColor(t) {
+    const scaled = Math.max(0, Math.min(1, t)) * (BB_MAP_RAMP.length - 1);
+    const i = Math.min(BB_MAP_RAMP.length - 2, Math.floor(scaled));
+    const f = scaled - i;
+    const c0 = BB_MAP_RAMP[i], c1 = BB_MAP_RAMP[i + 1];
+    const r = Math.round(c0[0] + (c1[0] - c0[0]) * f);
+    const g = Math.round(c0[1] + (c1[1] - c0[1]) * f);
+    const b = Math.round(c0[2] + (c1[2] - c0[2]) * f);
+    return `rgb(${r},${g},${b})`;
+}
+
+function bbClearMarkers() {
+    bbMarkers.forEach(m => m.setMap(null));
+    bbMarkers = [];
+}
+
+function bbRenderMode(mode) {
+    bbClearMarkers();
+    const points = bbHeatmapData[mode];
+    const format = BB_MODE_META[mode].format;
+    document.getElementById('bb-map-legend-min').textContent = '';
+    document.getElementById('bb-map-legend-max').textContent = '';
+    if (!points || !points.length) return;
+
+    const weights = points.map(p => p.weight);
+    const maxWeight = Math.max(...weights);
+    const minWeight = Math.min(...weights);
+
+    points.forEach(p => {
+        const t = maxWeight > minWeight ? (p.weight - minWeight) / (maxWeight - minWeight) : 1;
+        const color = bbRampColor(t);
+        const circle = new google.maps.Circle({
+            strokeColor: color,
+            strokeOpacity: 0.7,
+            strokeWeight: 1,
+            fillColor: color,
+            fillOpacity: 0.3 + t * 0.4,
+            map: bbMap,
+            center: { lat: p.lat, lng: p.lng },
+            radius: 110 + t * 950,
+            clickable: true,
+        });
+        circle.addListener('mouseover', () => {
+            bbInfoWindow.setContent(
+                `<div style="font-family:-apple-system,sans-serif;font-size:13px;padding:2px;">
+                    <strong>${p.name}</strong>${p.city ? ' &middot; ' + p.city : ''}<br>
+                    ${format(p.weight)}
+                </div>`
+            );
+            bbInfoWindow.setPosition({ lat: p.lat, lng: p.lng });
+            bbInfoWindow.open(bbMap);
+        });
+        circle.addListener('mouseout', () => bbInfoWindow.close());
+        bbMarkers.push(circle);
+    });
+
+    document.getElementById('bb-map-legend-min').textContent = format(minWeight);
+    document.getElementById('bb-map-legend-max').textContent = format(maxWeight);
+}
+
+function bbSetHeatmapMode(mode) {
+    ['reported', 'empty', 'income'].forEach(m => {
+        document.getElementById('btn-' + m).classList.toggle('active', m === mode);
+    });
+    document.getElementById('bb-map-mode-label').textContent = BB_MODE_META[mode].mapLabel;
+    bbRenderMode(mode);
+}
+
+function initBbMap() {
+    bbMap = new google.maps.Map(document.getElementById('bb-map'), {
+        mapTypeControl: false,
+        streetViewControl: false,
+    });
+    bbInfoWindow = new google.maps.InfoWindow();
+
+    const bounds = new google.maps.LatLngBounds();
+    bbHeatmapData.reported.forEach(p => bounds.extend({ lat: p.lat, lng: p.lng }));
+    if (!bounds.isEmpty()) bbMap.fitBounds(bounds, 40);
+
+    bbRenderMode('reported');
+}
+
+window.initBbMap = initBbMap;
+</script>
+<script src="https://maps.googleapis.com/maps/api/js?key={{ api_key }}&callback=initBbMap" async defer></script>
+{% endif %}
+{% endblock %}
