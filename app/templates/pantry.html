@@ -59,6 +59,7 @@
         color: white; background: rgba(255,255,255,0.12); transition: background 0.2s ease;
     }
     .pg-btn:hover { background: rgba(255,255,255,0.24); color: white; }
+    #starPantryButton.starred i { color: #ffd700; }
     .pg-btn.primary { background: linear-gradient(45deg, #ff6b6b, #ee5a24); color: white; border-color: transparent; }
     .pg-btn.primary:hover { background: linear-gradient(45deg, #ee5a24, #ff6b6b); color: white; }
 
@@ -137,6 +138,7 @@
         <div class="pg-actions">
             <a href="{{ url_for('views.report', id=pantry.id) }}" class="pg-btn primary"><i class="fas fa-clipboard-check"></i> Report status</a>
             <a href="#get-alerts" class="pg-btn"><i class="fas fa-bell"></i> Get alerts</a>
+            <button type="button" class="pg-btn" id="starPantryButton" data-pantry-id="{{ pantry.id }}" aria-pressed="false"><i class="far fa-star"></i> <span>Star</span></button>
             <a href="https://www.google.com/maps/search/?api=1&query={{ pantry.latitude }},{{ pantry.longitude }}&zoom=16" target="_blank" class="pg-btn"><i class="fas fa-diamond-turn-right"></i> Directions</a>
             <button onclick="shareOnFacebook()" class="pg-btn"><i class="fab fa-facebook-f"></i> Share</button>
             {% if can_edit %}
@@ -291,6 +293,27 @@
 
 {% block script %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="{{ url_for('static', filename='favorites.js') }}"></script>
+<script>
+// Star this pantry - starred pantries are pinned to the top of the dashboard table (saved in this browser)
+(function () {
+    const button = document.getElementById('starPantryButton');
+    if (!button) return;
+    const render = () => {
+        const starred = RTPFavorites.has(button.dataset.pantryId);
+        button.classList.toggle('starred', starred);
+        button.setAttribute('aria-pressed', starred);
+        button.querySelector('i').className = (starred ? 'fas' : 'far') + ' fa-star';
+        button.querySelector('span').textContent = starred ? 'Starred' : 'Star';
+        button.title = starred ? 'Unstar - remove from the top of the dashboard' : 'Star - keep this pantry at the top of the dashboard';
+    };
+    button.addEventListener('click', () => {
+        RTPFavorites.toggle(button.dataset.pantryId);
+        render();
+    });
+    render();
+})();
+</script>
 {% if analytics %}
 <script>
 const PG_COLORS = {
@@ -315,10 +338,12 @@ new Chart(document.getElementById('chartDow'), {
     }
 });
 
+// 0-23 -> '12am', '1pm', ... for the hour-of-day axis
+const formatHour = h => (h % 12 || 12) + (h < 12 ? 'am' : 'pm');
 const hod = {{ analytics.charts.hour_of_day | tojson }};
 new Chart(document.getElementById('chartHour'), {
     type: 'bar',
-    data: { labels: hod.map(h => h.hour), datasets: [{ data: hod.map(h => h.count), backgroundColor: PG_COLORS.secondary, borderRadius: 3, barPercentage: 0.9, categoryPercentage: 0.9 }] },
+    data: { labels: hod.map(h => formatHour(h.hour)), datasets: [{ data: hod.map(h => h.count), backgroundColor: PG_COLORS.secondary, borderRadius: 3, barPercentage: 0.9, categoryPercentage: 0.9 }] },
     options: {
         responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
         scales: { x: { grid: { display: false }, ticks: { maxTicksLimit: 8 } }, y: { grid: { color: PG_COLORS.grid }, ticks: { precision: 0 } } }

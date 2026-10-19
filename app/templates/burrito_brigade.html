@@ -247,12 +247,14 @@ new Chart(document.getElementById('chartDow'), {
     }
 });
 
+// 0-23 -> '12am', '1pm', ... for the hour-of-day axis
+const formatHour = h => (h % 12 || 12) + (h < 12 ? 'am' : 'pm');
 const hod = {{ trends.hour_of_day | tojson }};
 const peakStart = {{ trends.peak_start_hour | tojson }};
 new Chart(document.getElementById('chartHour'), {
     type: 'bar',
     data: {
-        labels: hod.map(h => h.hour),
+        labels: hod.map(h => formatHour(h.hour)),
         datasets: [{ data: hod.map(h => h.count), backgroundColor: hod.map(h => ((h.hour - peakStart + 24) % 24 < 3) ? BB_COLORS.accent : BB_COLORS.gray), borderRadius: 3, barPercentage: 0.9, categoryPercentage: 0.9 }]
     },
     options: {

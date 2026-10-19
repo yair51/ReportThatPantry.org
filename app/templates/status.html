@@ -647,6 +647,64 @@
             letter-spacing: 0.3px;
         }
     }
+
+    .star-toggle {
+        background: none;
+        border: none;
+        padding: 4px 6px;
+        font-size: 1.25rem;
+        color: #adb5bd;
+        cursor: pointer;
+        line-height: 1;
+    }
+
+    .star-toggle:hover { color: #f5b800; }
+    .star-toggle.starred { color: #f5b800; }
+
+    #locationTable td.col-star, #locationTable th.col-star { width: 48px; text-align: center; }
+
+    .star-hint {
+        color: #6c757d;
+        font-size: 0.9rem;
+        margin: -12px 0 18px 4px;
+    }
+
+    .star-hint i { color: #f5b800; }
+
+    /* Phones: each pantry becomes a compact stacked row instead of a cramped 4-column table */
+    @media (max-width: 576px) {
+        .location-table-section .card-body { padding: 16px; }
+
+        /* bootstrap-table styles the header with higher specificity, hence !important */
+        #locationTable thead { display: none !important; }
+
+        #locationTable, #locationTable tbody { display: block; width: 100%; }
+
+        #locationTable tbody tr {
+            display: grid;
+            grid-template-columns: 40px minmax(0, 1fr);
+            grid-template-areas:
+                "star location"
+                "star time"
+                "star actions";
+            padding: 14px 4px;
+            border-top: 1px solid #e9ecef;
+        }
+
+        #locationTable tbody td {
+            display: block;
+            padding: 0;
+            border: none;
+        }
+
+        #locationTable td.col-star { grid-area: star; width: auto; text-align: left; }
+        #locationTable td.col-location { grid-area: location; }
+        #locationTable td.col-time { grid-area: time; color: #6c757d; font-size: 0.85rem; margin-top: 6px; }
+        #locationTable td.col-actions { grid-area: actions; margin-top: 10px; }
+        #locationTable td.col-actions .btn { width: 100%; }
+
+        .location-name { font-size: 1.05rem; }
+    }
 </style>
 {% endblock %}
 
@@ -747,6 +805,7 @@
                     <i class="fas fa-search"></i>
                     <input type="text" id="searchInput" placeholder="Search locations..." class="form-control">
                 </div>
+                <p class="star-hint"><i class="far fa-star"></i> Star your pantries to keep them at the top. Stars are saved in this browser.</p>
                 
                 <div class="table-responsive">
                     <table id="locationTable" 
@@ -756,15 +815,17 @@
                            data-search-selector="#searchInput"
                            data-sort-name="time"
                            data-sort-order="desc"
+                           data-custom-sort="starredFirstSort"
                            data-pagination="true"
                            data-page-size="10"
                            data-show-header="true"
                            data-loading-template="loadingTemplate">
                         <thead>
                             <tr>
-                                <th data-field="location" data-sortable="true">Location</th>
-                                <th data-field="time" data-sortable="true" data-formatter="timeFormatter">Last Updated</th>
-                                <th>Actions</th>
+                                <th data-field="id" data-formatter="starFormatter" data-class="col-star" data-searchable="false"><span class="sr-only">Starred</span></th>
+                                <th data-field="location" data-sortable="true" data-class="col-location">Location</th>
+                                <th data-field="time" data-sortable="true" data-formatter="timeFormatter" data-class="col-time">Last Updated</th>
+                                <th data-class="col-actions">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -772,6 +833,7 @@
                                 {% set latest_report = location.reports[-1] %} 
                                 {% if latest_report %}
                                 <tr>
+                                    <td>{{ location.id }}</td>
                                     <td>
                                         <div class="location-name">{{ location.name }}</div>
                                         <div class="location-address">{{ location.address }}, {{ location.city }}, {{ location.state }}</div>
@@ -814,6 +876,8 @@
 {% block script %}
 <script src="https://unpkg.com/bootstrap-table@1.18.3/dist/bootstrap-table.min.js"></script>
 
+<script src="{{ url_for('static', filename='favorites.js') }}"></script>
+
 <script>
 // Format time function for table
 function timeFormatter(value) {
@@ -821,6 +885,48 @@ function timeFormatter(value) {
     const date = new Date(value * 1000);
     return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
 }
+
+// Star button in the first column (the field value is the pantry id)
+function starFormatter(value) {
+    const id = String(value).trim();
+    const starred = RTPFavorites.has(id);
+    const label = starred ? 'Unstar this pantry' : 'Star this pantry';
+    return '<button type="button" class="star-toggle' + (starred ? ' starred' : '') + '" data-pantry-id="' + id + '"' +
+        ' aria-pressed="' + starred + '" aria-label="' + label + '" title="' + label + '">' +
+        '<i class="' + (starred ? 'fas' : 'far') + ' fa-star"></i></button>';
+}
+
+// bootstrap-table customSort: starred pantries always come first, then the column the user sorted by
+function starredFirstSort(sortName, sortOrder, data) {
+    const starred = new Set(RTPFavorites.all());
+    const direction = sortOrder === 'desc' ? -1 : 1;
+    const sortKey = row => sortName === 'time'
+        ? (parseFloat(row.time) || 0)
+        : String(row[sortName] || '').replace(/<[^>]*>/g, ' ').trim().toLowerCase();
+
+    data.sort((a, b) => {
+        const aStarred = starred.has(String(a.id).trim());
+        const bStarred = starred.has(String(b.id).trim());
+        if (aStarred !== bStarred) return aStarred ? -1 : 1;
+        const aKey = sortKey(a), bKey = sortKey(b);
+        return aKey < bKey ? -direction : aKey > bKey ? direction : 0;
+    });
+}
+
+document.addEventListener('click', function (event) {
+    const button = event.target.closest('.star-toggle');
+    if (!button) return;
+    RTPFavorites.toggle(button.dataset.pantryId);
+
+    // Re-sort and redraw so the pantry moves to (or out of) the starred group at the top
+    const table = $('#locationTable').data('bootstrap.table');
+    if (table) {
+        table.initSort();
+        table.options.pageNumber = 1;
+        table.initPagination();
+        table.initBody();
+    }
+});
 
 </script>
 {% endblock %}
