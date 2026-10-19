@@ -1055,6 +1055,7 @@ def uploaded_file(filename):
 
 
 @views.route('/status', methods=['GET', 'POST'])
+@views.route('/dashboard')
 def status():
     # Get every report for every location, ordered by report time
     locations = db.session.query(Location).options(joinedload(Location.reports)).all()

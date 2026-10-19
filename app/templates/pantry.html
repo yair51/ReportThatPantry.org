@@ -176,15 +176,6 @@
     <div class="pg-kpi"><div class="pg-kpi-value">{{ analytics.total_reports }}</div><div class="pg-kpi-label">Total reports</div></div>
     <div class="pg-kpi"><div class="pg-kpi-value">{{ analytics.fullness_stats.current }}%</div><div class="pg-kpi-label">Current fullness</div></div>
     <div class="pg-kpi"><div class="pg-kpi-value">{{ analytics.fullness_stats.average }}%</div><div class="pg-kpi-label">Average fullness</div></div>
-    <div class="pg-kpi"><div class="pg-kpi-value">{{ "%.1f"|format(analytics.total_reports / (analytics.date_range.days / 7)) }}</div><div class="pg-kpi-label">Reports / week</div></div>
-</div>
-
-<div class="pg-section">
-    <h2>Fullness over time</h2>
-    <p class="pg-section-note">Every check-in for this pantry, from {{ analytics.date_range.start.strftime('%b %Y') }} to {{ analytics.date_range.end.strftime('%b %Y') }}.</p>
-    <div class="pg-card">
-        <div class="pg-chart-box" style="height:260px;"><canvas id="chartFullnessTime" role="img" aria-label="Line chart of this pantry's reported fullness over time."></canvas></div>
-    </div>
 </div>
 
 <div class="pg-section">
@@ -213,21 +204,6 @@
     </div>
 </div>
 
-{% if analytics.restocking and analytics.restocking.total_restocking_events > 0 %}
-<div class="pg-section">
-    <h2>Restocking patterns</h2>
-    <div class="pg-card">
-        <div class="pg-stat-line"><span>Times restocked (jump of 30%+)</span><span class="num">{{ analytics.restocking.total_restocking_events }}</span></div>
-        {% if analytics.restocking.average_restock_time_hours %}
-        <div class="pg-stat-line"><span>Typical time between restocks</span><span class="num">{{ "%.0f"|format(analytics.restocking.average_restock_time_hours) }} hours</span></div>
-        {% endif %}
-        {% if analytics.restocking.average_depletion_time_hours %}
-        <div class="pg-stat-line"><span>Typical time to run low after a restock</span><span class="num">{{ "%.0f"|format(analytics.restocking.average_depletion_time_hours) }} hours</span></div>
-        {% endif %}
-        <div class="pg-stat-line"><span>Restocking events per week</span><span class="num">{{ analytics.restocking.restocking_frequency_per_week }}</span></div>
-    </div>
-</div>
-{% endif %}
 
 
 {% else %}
@@ -328,26 +304,6 @@ const PG_COLORS = {
 };
 Chart.defaults.font.family = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
 Chart.defaults.color = PG_COLORS.axis;
-
-const fullnessPoints = {{ analytics.chart_data.data_points | tojson }};
-new Chart(document.getElementById('chartFullnessTime'), {
-    type: 'line',
-    data: {
-        labels: fullnessPoints.map(p => { const d = new Date(p.timestamp); return d.toLocaleDateString(); }),
-        datasets: [{
-            data: fullnessPoints.map(p => p.fullness),
-            borderColor: PG_COLORS.accent, backgroundColor: PG_COLORS.accentFill,
-            fill: true, tension: 0.25, pointRadius: 0, pointHoverRadius: 4, borderWidth: 2
-        }]
-    },
-    options: {
-        responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
-        scales: {
-            x: { grid: { display: false }, ticks: { maxRotation: 45, minRotation: 45, autoSkip: true, maxTicksLimit: 12 } },
-            y: { grid: { color: PG_COLORS.grid }, min: 0, max: 100, ticks: { callback: v => v + '%' } }
-        }
-    }
-});
 
 const dow = {{ analytics.charts.day_of_week | tojson }};
 new Chart(document.getElementById('chartDow'), {

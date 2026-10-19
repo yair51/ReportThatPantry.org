@@ -246,6 +246,14 @@
         transition: all 0.3s ease;
     }
     
+    .btn-social, .btn-social:hover, .btn-social:focus {
+        color: white;
+    }
+
+    .btn-social.btn-warning {
+        text-shadow: 0 1px 2px rgba(0,0,0,0.25);  /* keeps white text readable on yellow */
+    }
+
     .btn-facebook {
         background: #4267B2;
         border-color: #4267B2;
@@ -287,8 +295,8 @@
                     <p class="hero-subtitle">Connect your community to Little Free Pantries. Know when they need help. Share when they're stocked. Build stronger neighborhoods together.</p>
                     
                     <div class="cta-buttons">
-                        <a href="/map" class="btn btn-hero-primary me-3">
-                            <i class="fas fa-map-marker-alt"></i> Find Local Pantries
+                        <a href="/dashboard" class="btn btn-hero-primary me-3">
+                            <i class="fas fa-chart-line"></i> View Pantry Status
                         </a>
                         <a href="#learn-more" class="btn btn-hero-secondary">
                             <i class="fas fa-info-circle"></i> Learn More
