@@ -287,6 +287,56 @@
             font-size: 2rem;
         }
     }
+
+    /* Phones: tighter spacing so the page isn't ~7 screens of scrolling */
+    @media (max-width: 576px) {
+        .hero-section { padding: 2rem 0 2.5rem; }
+        .hero-title { font-size: 2.1rem; margin-bottom: 0.75rem; }
+        .hero-subtitle { font-size: 1rem; margin-bottom: 1.25rem; }
+        .cta-buttons { margin-bottom: 1.5rem; }
+        .cta-buttons .btn { padding: 0.75rem 1.25rem; font-size: 1rem; }
+
+        .visibility-section { padding: 2rem 0; }
+        .mission-card { padding: 1.5rem 1.25rem; border-radius: 16px; }
+        .visibility-icon { width: 56px; height: 56px; font-size: 1.5rem; margin-bottom: 1rem; }
+        .mission-card h2 { font-size: 1.5rem; margin-bottom: 0.75rem !important; }
+        .mission-card .lead { font-size: 1rem; margin-bottom: 0.75rem !important; }
+        .mission-card .row { margin-top: 0.75rem !important; }
+        .mission-card h5 { font-size: 1rem; margin-bottom: 0.15rem; }
+        .mission-card p.small { margin-bottom: 0.75rem; }
+
+        .stats-section { padding: 1.5rem 0; }
+        .stat-card { padding: 0.75rem 0.25rem; }
+        .stat-number { font-size: 1.75rem; }
+        .stat-label { font-size: 0.72rem; letter-spacing: 0.5px; }
+
+        .features-section { padding: 2.5rem 0 1.5rem; }
+        .features-section .row.mb-5 { margin-bottom: 1.25rem !important; }
+        .features-section h2 { font-size: 1.6rem; margin-bottom: 0.5rem !important; }
+        .features-section .lead { font-size: 1rem; }
+        .features-section .col-lg-4 { margin-bottom: 0.75rem !important; }
+        /* Icon beside the text instead of stacked above it */
+        .feature-card {
+            display: grid;
+            grid-template-columns: 52px minmax(0, 1fr);
+            column-gap: 1rem;
+            text-align: left;
+            padding: 1.25rem;
+        }
+        .feature-card .feature-icon {
+            grid-row: 1 / span 3;
+            width: 52px; height: 52px; font-size: 1.3rem; border-radius: 12px; margin: 0;
+        }
+        .feature-card h4 { font-size: 1.15rem; margin-bottom: 0.35rem !important; }
+        .feature-card p { font-size: 0.92rem; margin-bottom: 0.75rem; }
+        .feature-card .btn { justify-self: start; }
+
+        .social-section { padding: 2.5rem 0; }
+        .social-section h2 { font-size: 1.6rem; margin-bottom: 0.75rem !important; }
+        .social-section .lead { font-size: 1rem; }
+        .social-buttons { margin-top: 1.25rem; }
+        .btn-social { padding: 0.75rem 1.5rem; }
+    }
 </style>
 
 <!-- Hero Section -->
@@ -353,25 +403,25 @@
 <section class="stats-section">
     <div class="container">
         <div class="row">
-            <div class="col-lg-3 col-md-6">
+            <div class="col-6 col-lg-3">
                 <div class="stat-card">
                     <span class="stat-number">{{ stats.total_pantries or '24' }}</span>
                     <span class="stat-label">Pantries Tracked</span>
                 </div>
             </div>
-            <div class="col-lg-3 col-md-6">
+            <div class="col-6 col-lg-3">
                 <div class="stat-card">
                     <span class="stat-number">{{ stats.total_reports or '156' }}</span>
                     <span class="stat-label">Community Reports</span>
                 </div>
             </div>
-            <div class="col-lg-3 col-md-6">
+            <div class="col-6 col-lg-3">
                 <div class="stat-card">
                     <span class="stat-number">{{ stats.states_covered or '4' }}</span>
                     <span class="stat-label">States Covered</span>
                 </div>
             </div>
-            <div class="col-lg-3 col-md-6">
+            <div class="col-6 col-lg-3">
                 <div class="stat-card">
                     <span class="stat-number">{{ stats.empty_alerts or '23' }}</span>
                     <span class="stat-label">Empty Alerts Sent</span>

@@ -349,6 +349,27 @@
             }
         }
 
+        /* Phones: two-column footer instead of four stacked sections */
+        @media (max-width: 576px) {
+            .footer-new { padding: 2.5rem 0 1.5rem; }
+            .footer-content {
+                grid-template-columns: 1fr 1fr;
+                gap: 1.5rem 1rem;
+                margin-bottom: 1.5rem;
+            }
+            .footer-section { gap: 0.5rem; }
+            .footer-section h4 { font-size: 1.1rem; margin-bottom: 0.75rem; }
+            /* About across the top; Quick Links on the left; Resources and Contact stacked on the right */
+            .footer-section:nth-child(1) { grid-column: 1 / -1; }
+            .footer-section:nth-child(2) { grid-column: 1; grid-row: 2 / span 2; }
+            .footer-section:nth-child(3) { grid-column: 2; grid-row: 2; }
+            .footer-section:nth-child(4) { grid-column: 2; grid-row: 3; }
+            .footer-section p { font-size: 0.9rem; margin-bottom: 0; }
+            .footer-links { gap: 0.15rem; }
+            .footer-links li a { padding: 0.4rem 0; }  /* still a comfortable tap target */
+            .footer-bottom { padding-top: 1.25rem; }
+        }
+
         /* Content Area */
         .content-area-new {
             min-height: calc(100vh - 200px);
